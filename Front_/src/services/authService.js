@@ -98,6 +98,76 @@ export function getCurrentUser() {
 }
 
 /**
+ * Solicitar enlace de recuperacion de contrasena
+ */
+export async function forgotPassword(correo) {
+  const response = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ correo }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Error al solicitar recuperacion.');
+  }
+
+  return data;
+}
+
+/**
+ * Restablecer contrasena con token
+ */
+export async function resetPassword(token, nuevaContrasena) {
+  const response = await fetch(`${API_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token, nuevaContrasena }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Error al restablecer la contrasena.');
+  }
+
+  return data;
+}
+
+/**
+ * Verificar correo electronico con token
+ */
+export async function verifyEmail(token) {
+  const response = await fetch(`${API_URL}/auth/verify-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Error al verificar el correo electronico.');
+  }
+
+  // Actualizar en localStorage si el usuario actual coincide
+  const currentUser = getCurrentUser();
+  if (currentUser && data.user && currentUser.id === data.user.id) {
+    currentUser.correoVerificado = true;
+    localStorage.setItem('vincloud_user', JSON.stringify(currentUser));
+  }
+
+  return data;
+}
+
+/**
  * Limpiar sesión (Logout)
  */
 export function clearSession() {

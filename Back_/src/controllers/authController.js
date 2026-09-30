@@ -1,7 +1,11 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../config/db.js';
-import { sendWelcomeEmail } from '../services/emailService.js';
+import { 
+  sendWelcomeEmail, 
+  sendVerificationEmail, 
+  sendPasswordResetEmail 
+} from '../services/emailService.js';
 
 // Expresión regular para validar formato básico de correo
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -96,7 +100,7 @@ export const register = async (req, res, next) => {
 
     const newUser = insertResult.rows[0];
 
-    // 6. Generar token JWT
+    // 6. Generar token JWT de sesion
     const jwtSecret = process.env.JWT_SECRET || 'super_secret_jwt_key_default';
     const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '7d';
 
@@ -111,19 +115,35 @@ export const register = async (req, res, next) => {
       { expiresIn: jwtExpiresIn }
     );
 
-    // 7. Enviar correo de bienvenida (en segundo plano, sin bloquear la respuesta)
+    // 7. Generar token para verificacion de correo (24h)
+    const verificationToken = jwt.sign(
+      {
+        id: newUser.id,
+        correo: newUser.correo,
+        tipo: 'verificacion_correo'
+      },
+      jwtSecret,
+      { expiresIn: '24h' }
+    );
+
+    // 8. Enviar correos en segundo plano (bienvenida y verificacion)
     sendWelcomeEmail(newUser.correo, newUser.nombre).catch((err) => {
-      console.error('⚠️ [EmailService] Error al enviar correo de bienvenida:', err.message);
+      console.error('[EmailService] Error al enviar correo de bienvenida:', err.message);
+    });
+
+    sendVerificationEmail(newUser.correo, newUser.nombre, verificationToken).catch((err) => {
+      console.error('[EmailService] Error al enviar correo de verificacion:', err.message);
     });
 
     return res.status(201).json({
-      message: 'Usuario registrado exitosamente.',
+      message: 'Usuario registrado exitosamente. Se ha enviado un correo de verificacion.',
       token,
       user: {
         id: newUser.id,
         nombre: newUser.nombre,
         correo: newUser.correo,
         rol: rolNombre,
+        correoVerificado: newUser.correo_verificado,
         nivelAcceso: newUser.nivel_acceso,
         espacioConsumido: Number(newUser.espacio_consumido),
         espacioDisponible: Number(newUser.espacio_disponible),
@@ -259,11 +279,176 @@ export const getProfile = async (req, res, next) => {
         nombre: user.nombre,
         correo: user.correo,
         rol: user.rol_nombre,
+        correoVerificado: user.correo_verificado,
         nivelAcceso: user.nivel_acceso,
         espacioConsumido: Number(user.espacio_consumido),
         espacioDisponible: Number(user.espacio_disponible),
         fechaRegistro: user.fecha_registro
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Validar y verificar correo electronico con token
+ */
+export const verifyEmail = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'El token de verificacion es requerido.' });
+    }
+
+    const jwtSecret = process.env.JWT_SECRET || 'super_secret_jwt_key_default';
+    let decoded;
+
+    try {
+      decoded = jwt.verify(token, jwtSecret);
+    } catch (err) {
+      return res.status(400).json({
+        error: 'El enlace de verificacion es invalido o ha expirado.'
+      });
+    }
+
+    if (decoded.tipo !== 'verificacion_correo') {
+      return res.status(400).json({ error: 'Token de tipo no valido.' });
+    }
+
+    const updateResult = await query(
+      `UPDATE usuario 
+       SET correo_verificado = TRUE 
+       WHERE id = $1 
+       RETURNING id, nombre, correo, correo_verificado`,
+      [decoded.id]
+    );
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
+    }
+
+    const updatedUser = updateResult.rows[0];
+
+    return res.status(200).json({
+      message: 'Correo electronico verificado exitosamente. Tu cuenta ahora tiene acceso completo.',
+      user: {
+        id: updatedUser.id,
+        nombre: updatedUser.nombre,
+        correo: updatedUser.correo,
+        correoVerificado: true
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Solicitar recuperacion de contrasena (Olvido su contrasena)
+ */
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { correo } = req.body;
+
+    if (!correo) {
+      return res.status(400).json({ error: 'Debes proporcionar tu correo electronico.' });
+    }
+
+    const cleanCorreo = correo.trim().toLowerCase();
+
+    // 1. Buscar si el usuario existe
+    const result = await query(
+      'SELECT id, nombre, correo FROM usuario WHERE LOWER(correo) = $1',
+      [cleanCorreo]
+    );
+
+    // Por seguridad, si no existe el correo respondemos con exito generico para no revelar registros
+    if (result.rows.length === 0) {
+      return res.status(200).json({
+        message: 'Si el correo esta registrado, se ha enviado un enlace de recuperacion.'
+      });
+    }
+
+    const user = result.rows[0];
+
+    // 2. Generar token de recuperacion con validez de 30 minutos
+    const jwtSecret = process.env.JWT_SECRET || 'super_secret_jwt_key_default';
+    const resetToken = jwt.sign(
+      {
+        id: user.id,
+        correo: user.correo,
+        tipo: 'recuperacion_contrasena'
+      },
+      jwtSecret,
+      { expiresIn: '30m' }
+    );
+
+    // 3. Enviar correo de restablecimiento
+    sendPasswordResetEmail(user.correo, user.nombre, resetToken).catch((err) => {
+      console.error('[EmailService] Error al enviar correo de recuperacion:', err.message);
+    });
+
+    return res.status(200).json({
+      message: 'Se ha enviado un enlace de recuperacion a tu correo electronico.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Restablecer contrasena usando token de recuperacion
+ */
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { token, nuevaContrasena } = req.body;
+
+    if (!token || !nuevaContrasena) {
+      return res.status(400).json({
+        error: 'El token y la nueva contrasena son requeridos.'
+      });
+    }
+
+    if (nuevaContrasena.length < 6) {
+      return res.status(400).json({
+        error: 'La nueva contrasena debe tener al menos 6 caracteres.'
+      });
+    }
+
+    // 1. Verificar token JWT
+    const jwtSecret = process.env.JWT_SECRET || 'super_secret_jwt_key_default';
+    let decoded;
+
+    try {
+      decoded = jwt.verify(token, jwtSecret);
+    } catch (err) {
+      return res.status(400).json({
+        error: 'El enlace de recuperacion es invalido o ha expirado. Por favor solicita uno nuevo.'
+      });
+    }
+
+    if (decoded.tipo !== 'recuperacion_contrasena') {
+      return res.status(400).json({ error: 'Token de tipo no valido.' });
+    }
+
+    // 2. Hashear la nueva contrasena
+    const saltRounds = 10;
+    const nuevaContrasenaHash = await bcrypt.hash(nuevaContrasena, saltRounds);
+
+    // 3. Actualizar contrasena en PostgreSQL
+    const updateResult = await query(
+      'UPDATE usuario SET contrasena_hash = $1 WHERE id = $2 RETURNING id, correo',
+      [nuevaContrasenaHash, decoded.id]
+    );
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
+    }
+
+    return res.status(200).json({
+      message: 'Contrasena restablecida exitosamente. Ya puedes iniciar sesion con tu nueva contrasena.'
     });
   } catch (error) {
     next(error);

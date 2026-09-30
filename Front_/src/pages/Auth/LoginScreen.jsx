@@ -7,7 +7,7 @@ import SubmitButton from '../../components/ui/SubmitButton';
 import AuthRightPanel from '../../components/auth/AuthRightPanel';
 import { login } from '../../services/authService';
 
-function LoginScreen({ onLogin, onGoToRegister }) {
+function LoginScreen({ onLogin, onGoToRegister, onGoToForgotPassword }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPass, setShowPass] = useState(false);
@@ -54,7 +54,13 @@ function LoginScreen({ onLogin, onGoToRegister }) {
                     <div>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                             <label style={{ fontSize: 12.5, fontWeight: 600, color: "#3B0A1F" }}>Contraseña</label>
-                            <button type="button" style={{ background: "none", border: "none", fontSize: 12, color: "#7D1535", fontWeight: 600, cursor: "pointer", padding: 0 }}>¿Olvidaste tu contraseña?</button>
+                            <button 
+                                type="button" 
+                                onClick={onGoToForgotPassword} 
+                                style={{ background: "none", border: "none", fontSize: 12, color: "#7D1535", fontWeight: 600, cursor: "pointer", padding: 0 }}
+                            >
+                                ¿Olvidaste tu contraseña?
+                            </button>
                         </div>
                         <FieldInput icon={lockIcon} type="password" value={password} onChange={setPassword} placeholder="••••••••" showToggle onToggle={() => setShowPass(v => !v)} showValue={showPass} />
                     </div>
