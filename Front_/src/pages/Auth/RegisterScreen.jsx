@@ -4,6 +4,7 @@ import FieldInput from '../../components/ui/FieldInput';
 import ErrorBanner from '../../components/ui/ErrorBanner';
 import SubmitButton from '../../components/ui/SubmitButton';
 import AuthRightPanel from '../../components/auth/AuthRightPanel';
+import { register } from '../../services/authService';
 
 function RegisterScreen({ onRegister, onGoToLogin }) {
   const [name, setName] = useState("");
@@ -15,18 +16,41 @@ function RegisterScreen({ onRegister, onGoToLogin }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    if (!name || !email || !password || !confirm) { setError("Por favor completa todos los campos."); return; }
-    if (password.length < 6) { setError("La contraseña debe tener al menos 6 caracteres."); return; }
-    if (password !== confirm) { setError("Las contraseñas no coinciden."); return; }
+    if (!name || !email || !password || !confirm) { 
+      setError("Por favor completa todos los campos."); 
+      return; 
+    }
+    if (password.length < 6) { 
+      setError("La contraseña debe tener al menos 6 caracteres."); 
+      return; 
+    }
+    if (password !== confirm) { 
+      setError("Las contraseñas no coinciden."); 
+      return; 
+    }
     setError("");
     setLoading(true);
-    setTimeout(() => { 
-      setLoading(false); 
-      const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
-      onRegister({ name: name, initials: initials, role: 'Cliente' }); 
-    }, 1100);
+
+    try {
+      const data = await register(name, email, password);
+      if (onRegister) {
+        // Asegurar que haya iniciales para el menú lateral
+        const user = data.user;
+        if (!user.initials && user.name) {
+            const parts = user.name.split(' ');
+            user.initials = parts.map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        } else if (!user.initials && user.email) {
+            user.initials = user.email.substring(0, 2).toUpperCase();
+        }
+        onRegister(user, data.token);
+      }
+    } catch (err) {
+      setError(err.message || "Error al crear la cuenta.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const personIcon = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>;

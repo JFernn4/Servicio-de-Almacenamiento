@@ -5,6 +5,7 @@ import FieldInput from '../../components/ui/FieldInput';
 import ErrorBanner from '../../components/ui/ErrorBanner';
 import SubmitButton from '../../components/ui/SubmitButton';
 import AuthRightPanel from '../../components/auth/AuthRightPanel';
+import { login } from '../../services/authService';
 
 function LoginScreen({ onLogin, onGoToRegister }) {
     const [email, setEmail] = useState("");
@@ -13,18 +14,34 @@ function LoginScreen({ onLogin, onGoToRegister }) {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
         e.preventDefault();
-        if (!email || !password) { setError("Por favor completa todos los campos."); return; }
+        if (!email || !password) {
+            setError("Por favor completa todos los campos.");
+            return;
+        }
         setError("");
         setLoading(true);
-        setTimeout(() => { 
-            setLoading(false); 
-            const extractedName = email.split('@')[0];
-            const formattedName = extractedName.charAt(0).toUpperCase() + extractedName.slice(1);
-            const initials = formattedName.substring(0, 2).toUpperCase() || 'US';
-            onLogin({ name: formattedName, initials: initials, role: 'Cliente' }); 
-        }, 1000);
+
+        try {
+            const data = await login(email, password);
+            if (onLogin) {
+                // Generar iniciales por si la base de datos no las incluye
+                const user = data.user;
+                if (!user.initials && user.name) {
+                    const parts = user.name.split(' ');
+                    user.initials = parts.map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                } else if (!user.initials && user.email) {
+                    user.initials = user.email.substring(0, 2).toUpperCase();
+                }
+                
+                onLogin(user, data.token);
+            }
+        } catch (err) {
+            setError(err.message || "Error al iniciar sesión.");
+        } finally {
+            setLoading(false);
+        }
     }
 
     const emailIcon = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>;
