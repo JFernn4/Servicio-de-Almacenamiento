@@ -36,7 +36,15 @@ function RegisterScreen({ onRegister, onGoToLogin }) {
     try {
       const data = await register(name, email, password);
       if (onRegister) {
-        onRegister(data.user, data.token);
+        // Asegurar que haya iniciales para el menú lateral
+        const user = data.user;
+        if (!user.initials && user.name) {
+            const parts = user.name.split(' ');
+            user.initials = parts.map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        } else if (!user.initials && user.email) {
+            user.initials = user.email.substring(0, 2).toUpperCase();
+        }
+        onRegister(user, data.token);
       }
     } catch (err) {
       setError(err.message || "Error al crear la cuenta.");

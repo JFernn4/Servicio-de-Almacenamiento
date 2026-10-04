@@ -26,7 +26,16 @@ function LoginScreen({ onLogin, onGoToRegister }) {
         try {
             const data = await login(email, password);
             if (onLogin) {
-                onLogin(data.user, data.token);
+                // Generar iniciales por si la base de datos no las incluye
+                const user = data.user;
+                if (!user.initials && user.name) {
+                    const parts = user.name.split(' ');
+                    user.initials = parts.map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                } else if (!user.initials && user.email) {
+                    user.initials = user.email.substring(0, 2).toUpperCase();
+                }
+                
+                onLogin(user, data.token);
             }
         } catch (err) {
             setError(err.message || "Error al iniciar sesión.");

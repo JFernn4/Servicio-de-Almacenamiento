@@ -51,10 +51,12 @@ function App() {
     );
   }
 
+  // Si hay usuario logueado, mostrar el Dashboard directamente
   if (user) {
     return <DashboardScreen user={user} onLogout={handleLogout} />;
   }
 
+  // Si no hay usuario, mostrar Login o Registro
   return (
     <div style={{ height: "100vh", width: "100vw", margin: 0, padding: 0 }}>
       {currentScreen === 'login' ? (
