@@ -22,7 +22,11 @@ function RegisterScreen({ onRegister, onGoToLogin }) {
     if (password !== confirm) { setError("Las contraseñas no coinciden."); return; }
     setError("");
     setLoading(true);
-    setTimeout(() => { setLoading(false); onRegister(); }, 1100);
+    setTimeout(() => { 
+      setLoading(false); 
+      const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
+      onRegister({ name: name, initials: initials, role: 'Cliente' }); 
+    }, 1100);
   }
 
   const personIcon = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>;

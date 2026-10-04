@@ -18,7 +18,13 @@ function LoginScreen({ onLogin, onGoToRegister }) {
         if (!email || !password) { setError("Por favor completa todos los campos."); return; }
         setError("");
         setLoading(true);
-        setTimeout(() => { setLoading(false); onLogin(); }, 1000);
+        setTimeout(() => { 
+            setLoading(false); 
+            const extractedName = email.split('@')[0];
+            const formattedName = extractedName.charAt(0).toUpperCase() + extractedName.slice(1);
+            const initials = formattedName.substring(0, 2).toUpperCase() || 'US';
+            onLogin({ name: formattedName, initials: initials, role: 'Cliente' }); 
+        }, 1000);
     }
 
     const emailIcon = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>;
