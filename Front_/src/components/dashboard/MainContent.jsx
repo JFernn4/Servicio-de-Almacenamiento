@@ -1,6 +1,7 @@
 import React from 'react';
 import MisArchivosView from './views/MisArchivosView';
 import PapeleraView from './views/PapeleraView';
+import RecientesView from './views/RecientesView';
 
 function MainContent({ activeTab }) {
   if (activeTab === 'papelera') {
@@ -9,6 +10,10 @@ function MainContent({ activeTab }) {
 
   if (activeTab === 'archivos') {
     return <MisArchivosView />;
+  }
+
+  if (activeTab === 'recientes') {
+    return <RecientesView />;
   }
 
   // Vista por defecto para tabs no implementados aún
