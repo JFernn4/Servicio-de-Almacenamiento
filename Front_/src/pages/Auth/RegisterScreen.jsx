@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import AuthLogo from '../../components/auth/AuthLogo';
 import FieldInput from '../../components/ui/FieldInput';
 import ErrorBanner from '../../components/ui/ErrorBanner';
-import SubmitButton from '../../components/ui/SubmitButton';
-import AuthRightPanel from '../../components/auth/AuthRightPanel';
+import AuthBackground from '../../components/auth/AuthBackground';
 import { register } from '../../services/authService';
 
 function RegisterScreen({ onRegister, onGoToLogin }) {
@@ -58,53 +57,87 @@ function RegisterScreen({ onRegister, onGoToLogin }) {
   const lockIcon = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>;
 
   return (
-    <div style={{ display: "flex", height: "100%", fontFamily: "Inter, sans-serif", background: "#F5F4F4" }}>
-      <div style={{ flex: "0 0 420px", background: "#fff", display: "flex", flexDirection: "column", justifyContent: "center", padding: "48px 48px", boxShadow: "4px 0 32px rgba(59,10,31,0.06)", overflowY: "auto" }}>
-        <AuthLogo />
-        <h2 style={{ fontSize: 26, fontWeight: 800, color: "#3B0A1F", margin: "0 0 6px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Crea tu cuenta</h2>
-        <p style={{ fontSize: 14, color: "#94A3B8", margin: "0 0 28px" }}>Completa el formulario para empezar a usar VinCloud.</p>
+    <div style={{ 
+        minHeight: "100vh", 
+        width: "100%", 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "center", 
+        position: "relative",
+        padding: "20px",
+        boxSizing: "border-box"
+    }}>
+      <AuthBackground />
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div>
-            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#3B0A1F", marginBottom: 6 }}>Nombre completo</label>
-            <FieldInput icon={personIcon} type="text" value={name} onChange={setName} placeholder="Carlos Alvarado" />
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#3B0A1F", marginBottom: 6 }}>Correo electrónico</label>
-            <FieldInput icon={emailIcon} type="email" value={email} onChange={setEmail} placeholder="carlos@empresa.com" />
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#3B0A1F", marginBottom: 6 }}>Contraseña</label>
-            <FieldInput icon={lockIcon} type="password" value={password} onChange={setPassword} placeholder="Mínimo 6 caracteres" showToggle onToggle={() => setShowPass(v => !v)} showValue={showPass} />
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "#3B0A1F", marginBottom: 6 }}>Confirmar contraseña</label>
-            <FieldInput icon={lockIcon} type="password" value={confirm} onChange={setConfirm} placeholder="Repite tu contraseña" showToggle onToggle={() => setShowConfirm(v => !v)} showValue={showConfirm} />
-          </div>
+      <div style={{ 
+          width: "100%", 
+          maxWidth: "520px", 
+          backgroundColor: "#FCFAFA", 
+          borderRadius: "24px", 
+          padding: "48px", 
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box",
+          position: "relative",
+          zIndex: 1
+      }}>
+        <div style={{ marginBottom: 32 }}>
+          <AuthLogo />
+        </div>
+        
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#7D1535", letterSpacing: 1.5, marginBottom: 8, textTransform: "uppercase" }}>
+            Crea tu espacio
+        </div>
+        <h2 style={{ fontSize: 32, fontWeight: 800, color: "#2D0615", margin: "0 0 12px", lineHeight: 1.1, letterSpacing: "-1px" }}>
+            Empieza con VinCloud
+        </h2>
+        <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 32px", lineHeight: 1.5 }}>
+            Tu espacio seguro en la nube está a unos pocos pasos.
+        </p>
 
-          {password.length > 0 && (
-            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-              {[1, 2, 3, 4].map((i) => {
-                const strength = password.length >= 10 ? 4 : password.length >= 8 ? 3 : password.length >= 6 ? 2 : 1;
-                const colors = ["#EF4444", "#F97316", "#EAB308", "#22C55E"];
-                return <div key={i} style={{ flex: 1, height: 3, borderRadius: 99, background: i <= strength ? colors[strength - 1] : "#E0D5D8" }} />;
-              })}
-              <span style={{ fontSize: 11, color: "#94A3B8", marginLeft: 6, whiteSpace: "nowrap" }}>
-                {password.length >= 10 ? "Muy segura" : password.length >= 8 ? "Segura" : password.length >= 6 ? "Regular" : "Débil"}
-              </span>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "#2D0615", marginBottom: 8 }}>Nombre completo</label>
+            <FieldInput icon={personIcon} type="text" value={name} onChange={setName} placeholder="Tu nombre y apellido" />
+          </div>
+          
+          <div>
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "#2D0615", marginBottom: 8 }}>Correo electrónico</label>
+            <FieldInput icon={emailIcon} type="email" value={email} onChange={setEmail} placeholder="nombre@empresa.com" />
+          </div>
+          
+          {/* Row for passwords */}
+          <div style={{ display: "flex", gap: 16 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "#2D0615", marginBottom: 8 }}>Contraseña</label>
+              <FieldInput icon={lockIcon} type="password" value={password} onChange={setPassword} placeholder="Mínimo 6 caracteres" showToggle onToggle={() => setShowPass(v => !v)} showValue={showPass} />
             </div>
-          )}
+            <div style={{ flex: 1 }}>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "#2D0615", marginBottom: 8 }}>Confirmar contraseña</label>
+              <FieldInput icon={lockIcon} type="password" value={confirm} onChange={setConfirm} placeholder="Repite la contraseña" showToggle onToggle={() => setShowConfirm(v => !v)} showValue={showConfirm} />
+            </div>
+          </div>
 
           {error && <ErrorBanner msg={error} />}
-          <SubmitButton loading={loading} label="Crear cuenta" loadingLabel="Creando cuenta..." />
+          
+          <button type="submit" disabled={loading} style={{ 
+              background: "#7D1535", color: "#fff", border: "none", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1, display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 4, boxShadow: "0 4px 12px rgba(125, 21, 53, 0.3)"
+          }}>
+              {loading ? "Creando..." : "Crear mi cuenta"}
+              {!loading && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>}
+          </button>
         </form>
 
-        <p style={{ fontSize: 12.5, color: "#94A3B8", textAlign: "center", marginTop: 24 }}>
-          ¿Ya tienes cuenta?{" "}
-          <span onClick={onGoToLogin} style={{ color: "#7D1535", fontWeight: 700, cursor: "pointer" }}>Inicia sesión</span>
+        <p style={{ fontSize: 13, color: "#64748B", textAlign: "center", marginTop: 28, marginBottom: 24 }}>
+          ¿Ya tienes una cuenta?{" "}
+          <span onClick={onGoToLogin} style={{ color: "#7D1535", fontWeight: 700, cursor: "pointer" }}>Iniciar sesión</span>
+        </p>
+
+        <p style={{ fontSize: 11, color: "#94A3B8", textAlign: "center", margin: 0 }}>
+            Al crear una cuenta, aceptas nuestros <span style={{ color: "#7D1535" }}>Términos de servicio</span> y <span style={{ color: "#7D1535" }}>Política de privacidad</span>.
         </p>
       </div>
-      <AuthRightPanel title={"Únete a VinCloud\nhoy mismo"} subtitle="Almacena, organiza y comparte tus archivos de forma segura. Tu espacio en la nube te espera." />
     </div>
   );
 }
