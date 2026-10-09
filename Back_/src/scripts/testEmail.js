@@ -1,49 +1,29 @@
+import { config } from '../config/env.js';
 import { sendEmail, isEmailConfigured } from '../services/emailService.js';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 async function runEmailTest() {
-  console.log('📬 --- Mailtrap SMTP Email Test ---');
-  console.log('Host:', process.env.SMTP_HOST || 'live.smtp.mailtrap.io');
-  console.log('Port:', process.env.SMTP_PORT || 587);
-  console.log('User:', process.env.SMTP_USER || 'api');
-  console.log('From:', process.env.EMAIL_FROM || 'Private Person <hello@vin.cloud.com>');
-  
-  const recipient = process.env.TEST_EMAIL_RECIPIENT || 'andresmaza2309@gmail.com';
+  const recipient = process.env.TEST_EMAIL_RECIPIENT;
+
+  console.log('📬 --- Prueba de correo SMTP ---');
+  console.log(`Host: ${config.mail.host}:${config.mail.port}`);
+  console.log('From:', config.mail.from);
   console.log('To:', recipient);
 
-  if (!isEmailConfigured()) {
-    console.log('\n⚠️ [Mailtrap] Atención: Falta configurar tu API Token en Back_/.env');
-    console.log('Reemplaza el valor de SMTP_PASS por tu token real de Mailtrap:');
-    console.log('  SMTP_PASS=<YOUR_API_TOKEN>');
-    console.log('\nUna vez configurado, ejecuta nuevamente: npm run test:email');
-    process.exit(0);
+  if (!isEmailConfigured() || !recipient) {
+    console.log('\n⚠️ Configura SMTP_PASS y TEST_EMAIL_RECIPIENT en Back_/.env y vuelve a ejecutar: npm run test:email');
+    return;
   }
-
-  console.log('\n🚀 Enviando correo de prueba a través de Mailtrap SMTP...');
 
   try {
     const info = await sendEmail({
-      from: process.env.EMAIL_FROM || 'Private Person <hello@vin.cloud.com>',
       to: recipient,
-      subject: 'Hello from Mailtrap',
-      text: 'This is a test e-mail message.',
+      subject: 'Prueba de VinCloud',
+      text: 'Este es un correo de prueba.',
     });
-
-    console.log('\n✅ Prueba completada con éxito!');
-    console.log('Message ID:', info.messageId);
-    console.log('\n🔎 Puedes revisar el estado de entrega y registros de envío en:');
-    console.log('👉 https://mailtrap.io/sending/email_logs\n');
+    console.log('\n✅ Correo enviado. Message ID:', info.messageId);
   } catch (error) {
     console.error('\n❌ Error al enviar el correo:', error.message);
-    if (error.response) {
-      console.error('Detalles del servidor SMTP:', error.response);
-    }
+    process.exitCode = 1;
   }
 }
 

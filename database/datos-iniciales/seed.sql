@@ -1,4 +1,5 @@
 INSERT INTO rol (nombre)
 VALUES
     ('Administrador'),
-    ('Usuario');
+    ('Usuario')
+ON CONFLICT (nombre) DO NOTHING;

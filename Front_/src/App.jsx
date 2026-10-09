@@ -1,76 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import LoginScreen from './pages/Auth/LoginScreen';
 import RegisterScreen from './pages/Auth/RegisterScreen';
 import DashboardScreen from './pages/Dashboard/DashboardScreen';
-import { getCurrentUser, clearSession, getProfile } from './services/authService';
+import { clearSession, getProfile } from './services/authService';
+import { colors } from './styles/theme';
 
 function App() {
-  const [currentScreen, setCurrentScreen] = useState('login'); // 'login' | 'register'
-  const [user, setUser] = useState(() => getCurrentUser());
+  const [authScreen, setAuthScreen] = useState('login'); // 'login' | 'register'
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Validar la sesión guardada al abrir la aplicación
   useEffect(() => {
-    // Sincronizar o validar sesión guardada
-    async function syncSession() {
-      const activeUser = await getProfile();
-      if (activeUser) {
-        setUser(activeUser);
-      } else {
-        setUser(null);
-      }
+    getProfile().then((activeUser) => {
+      setUser(activeUser);
       setLoading(false);
-    }
-
-    syncSession();
+    });
   }, []);
-
-  function handleAuthSuccess(authenticatedUser) {
-    setUser(authenticatedUser);
-  }
 
   function handleLogout() {
     clearSession();
     setUser(null);
-    setCurrentScreen('login');
+    setAuthScreen('login');
   }
 
   if (loading) {
     return (
-      <div style={{
-        height: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#F8FAFC",
-        color: "#7D1535",
-        fontWeight: 600,
-        fontFamily: "'Inter', sans-serif"
-      }}>
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC', color: colors.primary, fontWeight: 600 }}>
         Cargando VinCloud...
       </div>
     );
   }
 
-  // Si hay usuario logueado, mostrar el Dashboard directamente
   if (user) {
     return <DashboardScreen user={user} onLogout={handleLogout} />;
   }
 
-  // Si no hay usuario, mostrar Login o Registro
-  return (
-    <div style={{ height: "100vh", width: "100vw", margin: 0, padding: 0 }}>
-      {currentScreen === 'login' ? (
-        <LoginScreen 
-          onLogin={handleAuthSuccess} 
-          onGoToRegister={() => setCurrentScreen('register')} 
-        />
-      ) : (
-        <RegisterScreen 
-          onRegister={handleAuthSuccess} 
-          onGoToLogin={() => setCurrentScreen('login')} 
-        />
-      )}
-    </div>
+  return authScreen === 'login' ? (
+    <LoginScreen onLogin={setUser} onGoToRegister={() => setAuthScreen('register')} />
+  ) : (
+    <RegisterScreen onRegister={setUser} onGoToLogin={() => setAuthScreen('login')} />
   );
 }
 

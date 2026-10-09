@@ -1,121 +1,85 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const TOKEN_KEY = 'vincloud_token';
+const USER_KEY = 'vincloud_user';
 
 /**
- * Iniciar sesión con correo y contraseña
+ * Llamada a la API. Lanza Error con el mensaje del backend; `status` queda
+ * indefinido cuando el servidor no respondió (error de red).
  */
+async function request(path, { method = 'GET', body, token } = {}) {
+  let response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      method,
+      headers: {
+        ...(body && { 'Content-Type': 'application/json' }),
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: body && JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('No se pudo conectar con el servidor. Intenta de nuevo más tarde.');
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error || 'Ocurrió un error inesperado.');
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+
+function saveSession({ token, user }) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
 export async function login(correo, contrasena) {
-  try {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ correo, contrasena }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Error al iniciar sesión.');
-
-    setSession(data.token, data.user);
-    return data;
-  } catch (err) {
-    console.warn("⚠️ Backend no disponible. Usando inicio de sesión simulado para Frontend.");
-    const extractedName = correo.split('@')[0];
-    const fakeUser = { id: 1, nombre: extractedName.charAt(0).toUpperCase() + extractedName.slice(1), correo, rol: 'Cliente' };
-    setSession('fake-token', fakeUser);
-    return { token: 'fake-token', user: fakeUser };
-  }
+  const data = await request('/auth/login', { method: 'POST', body: { correo, contrasena } });
+  saveSession(data);
+  return data.user;
 }
 
-/**
- * Registrar un nuevo usuario
- */
 export async function register(nombre, correo, contrasena) {
+  const data = await request('/auth/register', { method: 'POST', body: { nombre, correo, contrasena } });
+  saveSession(data);
+  return data.user;
+}
+
+/**
+ * Usuario guardado localmente (puede estar desactualizado).
+ */
+function getCurrentUser() {
   try {
-    const response = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ nombre, correo, contrasena }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Error al registrar la cuenta.');
-
-    setSession(data.token, data.user);
-    return data;
-  } catch (err) {
-    console.warn("⚠️ Backend no disponible. Usando registro simulado para Frontend.");
-    const fakeUser = { id: 1, nombre, correo, rol: 'Cliente' };
-    setSession('fake-token', fakeUser);
-    return { token: 'fake-token', user: fakeUser };
-  }
-}
-
-/**
- * Obtener perfil del usuario con token
- */
-export async function getProfile() {
-  const token = getToken();
-  if (!token) return null;
-  if (token === 'fake-token') return getCurrentUser(); // Retorna el usuario falso guardado
-
-  try {
-    const response = await fetch(`${API_URL}/auth/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      clearSession();
-      return null;
-    }
-
-    const data = await response.json();
-    if (data.user) {
-      localStorage.setItem('vincloud_user', JSON.stringify(data.user));
-    }
-    return data.user;
-  } catch (err) {
-    console.warn("⚠️ Backend no disponible al verificar sesión.");
-    return getCurrentUser();
-  }
-}
-
-/**
- * Guardar datos de sesión localmente
- */
-export function setSession(token, user) {
-  if (token) localStorage.setItem('vincloud_token', token);
-  if (user) localStorage.setItem('vincloud_user', JSON.stringify(user));
-}
-
-/**
- * Obtener token almacenado
- */
-export function getToken() {
-  return localStorage.getItem('vincloud_token');
-}
-
-/**
- * Obtener usuario almacenado
- */
-export function getCurrentUser() {
-  const raw = localStorage.getItem('vincloud_user');
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
+    return JSON.parse(localStorage.getItem(USER_KEY));
   } catch {
     return null;
   }
 }
 
 /**
- * Limpiar sesión (Logout)
+ * Valida la sesión guardada contra el backend. Si el token ya no es válido
+ * cierra la sesión; si el servidor no responde conserva el usuario guardado.
  */
+export async function getProfile() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+
+  try {
+    const { user } = await request('/auth/me', { token });
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    return user;
+  } catch (error) {
+    if (error.status) {
+      clearSession();
+      return null;
+    }
+    return getCurrentUser();
+  }
+}
+
 export function clearSession() {
-  localStorage.removeItem('vincloud_token');
-  localStorage.removeItem('vincloud_user');
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 }

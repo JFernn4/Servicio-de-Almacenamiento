@@ -1,26 +1,17 @@
-import React from 'react';
-import MisArchivosView from './views/MisArchivosView';
-import PapeleraView from './views/PapeleraView';
-import RecientesView from './views/RecientesView';
+import { NAV_ITEMS } from './navigation';
+import { colors } from '../../styles/theme';
 
 function MainContent({ activeTab }) {
-  if (activeTab === 'papelera') {
-    return <PapeleraView />;
+  const item = NAV_ITEMS.find((navItem) => navItem.id === activeTab);
+
+  if (item?.View) {
+    return <item.View />;
   }
 
-  if (activeTab === 'archivos') {
-    return <MisArchivosView />;
-  }
-
-  if (activeTab === 'recientes') {
-    return <RecientesView />;
-  }
-
-  // Vista por defecto para tabs no implementados aún
   return (
-    <div style={{ padding: 48, textAlign: 'center', color: '#94A3B8' }}>
+    <div style={{ padding: 48, textAlign: 'center', color: colors.subtle }}>
       <h2>Vista en construcción</h2>
-      <p>Has seleccionado: {activeTab}</p>
+      <p>Has seleccionado: {item?.label ?? activeTab}</p>
     </div>
   );
 }
