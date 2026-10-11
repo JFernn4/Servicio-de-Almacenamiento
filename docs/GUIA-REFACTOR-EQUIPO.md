@@ -1,9 +1,12 @@
 # Guía del refactor para el equipo
 
-**Rama:** `refactor/principios-diseno` (sale de `main` en el commit `101ab94`).
-**Qué es:** una reorganización del código que ya existía (login, registro y dashboard) para que cumpla SOLID, DRY, KISS y YAGNI. **No agrega funcionalidades nuevas.**
+**Dónde está:** en `main`, desde el 11 de octubre de 2026.
 
-Este documento explica qué cambió, qué tiene que hacer cada quien para seguir trabajando y dónde poner el código nuevo. El detalle de *por qué* se hizo cada cambio está en [`02-diseno/evaluacion-principios-diseno.md`](02-diseno/evaluacion-principios-diseno.md).
+**Qué incluye:**
+1. **Refactor** del código que ya existía (login, registro y panel) para que cumpla SOLID, DRY, KISS y YAGNI.
+2. **Integración de la rama `integracion`** (validación de correo y recuperación de contraseña, de Jimmy Quevedo), adaptada a la estructura nueva.
+
+No se agregó ninguna otra funcionalidad. Este documento explica qué cambió, qué tiene que hacer cada quien para seguir trabajando y dónde poner el código nuevo. El detalle de *por qué* se hizo cada cambio del refactor está en `docs/02-diseno/evaluacion-principios-diseno.md`.
 
 ---
 
@@ -11,7 +14,7 @@ Este documento explica qué cambió, qué tiene que hacer cada quien para seguir
 
 | Área | Antes | Ahora |
 |---|---|---|
-| Backend | Un controlador de 270 líneas hacía todo | Capas separadas: rutas → controladores → validadores → servicios → repositorios |
+| Backend | Un controlador de más de 270 líneas hacía todo | Capas separadas: rutas → controladores → validadores → servicios → repositorios |
 | Frontend | SVG, colores y la tarjeta de login/registro copiados en cada archivo | Componentes reutilizables (`Icon`, `AuthLayout`, `FileTable`…) y colores en `theme.js` |
 | Base de datos | `db:init` fallaba si se corría dos veces | Scripts repetibles (`IF NOT EXISTS`, `ON CONFLICT`) |
 | Limpieza | `multer` y varios archivos sin uso | Eliminados |
@@ -27,20 +30,31 @@ Este documento explica qué cambió, qué tiene que hacer cada quien para seguir
 
 ---
 
-## 2. Cómo obtener los cambios
+## 2. Qué tienes que hacer ahora
+
+**1. Actualiza `main`:**
 
 ```bash
-git fetch origin
-git checkout refactor/principios-diseno
+git checkout main
+git pull origin main
 ```
 
-Después, **obligatorio** en `Back_` y en `Front_` (las dependencias cambiaron):
+**2. Reinstala las dependencias** en `Back_` y en `Front_` (cambiaron):
 
 ```bash
 npm ci
 ```
 
-Para traer el refactor a tu propia rama: `git merge origin/refactor/principios-diseno`. Lee antes la sección 7, porque hay ramas con conflictos.
+**3. Revisa tu `Back_/.env`** (sección 3.1): `JWT_SECRET` es obligatorio y hay variables nuevas.
+
+**4. Si tienes una rama propia con trabajo sin terminar**, trae `main` a tu rama:
+
+```bash
+git checkout tu-rama
+git merge main
+```
+
+Si aparecen conflictos, no los resuelvas línea por línea: mueve tu código al lugar que le corresponde en la estructura nueva (secciones 4 y 5).
 
 ---
 
@@ -52,13 +66,15 @@ Para traer el refactor a tu propia rama: `git merge origin/refactor/principios-d
 |---|---|
 | `JWT_SECRET` | **Obligatoria.** Sin ella el servidor no arranca |
 | `CORS_ORIGIN` | **Nueva.** URL del frontend (por defecto `http://localhost:5173`). El backend ya no acepta peticiones de cualquier origen |
-| `EMAIL_FROM`, `TEST_EMAIL_RECIPIENT` | Ya no tienen valores por defecto con datos personales. `npm run test:email` exige `TEST_EMAIL_RECIPIENT` |
+| `FRONTEND_URL` | **Nueva.** Base de los enlaces que van en los correos |
+| `SMTP_PASS` | Si empieza con `<` (como el valor de ejemplo) se considera "sin configurar": los correos no se envían y los enlaces se imprimen en la consola del backend |
+| `TEST_EMAIL_RECIPIENT` | Obligatoria para `npm run test:email` (ya no hay un correo personal por defecto) |
 
 `dotenv` se carga **una sola vez**, en `src/config/env.js`. En el resto del código no uses `process.env`: importa `config`.
 
 ```js
 import { config } from '../config/env.js';
-config.jwt.secret; config.db.host; config.mail.from;
+config.jwt.secret; config.db.host; config.mail.from; config.frontendUrl;
 ```
 
 ### 3.2 Ya no hay login simulado
@@ -67,7 +83,7 @@ Para entrar a la app **necesitas el backend y PostgreSQL funcionando**. Si el ba
 
 ### 3.3 Cambios en las respuestas de la API
 
-Las rutas son las mismas (`/api/auth/register`, `/login`, `/me`) y el objeto `user` no cambió. Cambian estos códigos:
+Las rutas de siempre (`/api/auth/register`, `/login`, `/me`) no cambian. Cambian estos códigos:
 
 | Caso | Antes | Ahora |
 |---|---|---|
@@ -76,11 +92,14 @@ Las rutas son las mismas (`/api/auth/register`, `/login`, `/me`) y el objeto `us
 | Error interno | `500` con el mensaje real | `500` con "Error interno del servidor" (el detalle queda en la consola) |
 | `GET /api/health` | `{ status, message, timestamp, environment }` | `{ status, timestamp }` |
 
-### 3.4 Dependencias
+El objeto `user` ahora incluye también `correoVerificado`.
+
+### 3.4 Dependencias y scripts
 
 - Se quitó **`multer`** porque nadie lo usaba. Quien haga la subida de archivos (Etapa 5) lo vuelve a instalar: `npm install multer`.
 - `morgan` pasó a `dependencies`.
 - Se quitó el script `npm test` vacío del backend.
+- `npm run db:init` y `npm run init-db` hacen lo mismo.
 
 ---
 
@@ -94,11 +113,16 @@ Back_/src/
   routes/           qué URL llama a qué controlador
   controllers/      leen la petición y responden. Sin lógica de negocio ni SQL
   validators/       validan y limpian los datos de entrada
-  services/         reglas de negocio (authService, tokenService, emailService)
+  services/         reglas de negocio:
+                      authService      registro, login, perfil
+                      accountService   verificación de correo y recuperación de contraseña
+                      tokenService     firma y verificación de JWT
+                      passwordService  hash de contraseñas (bcrypt)
+                      emailService     envío de correos
   repositories/     todo el SQL (userRepository)
   templates/        contenido de los correos
   middlewares/      authMiddleware (JWT), errorHandler (errores y 404)
-  utils/httpError.js
+  utils/            httpError.js, escapeHtml.js
 ```
 
 ### Receta para agregar un endpoint
@@ -117,13 +141,17 @@ export async function hacerAlgo(req, res) {
 }
 ```
 
+`accountService.js` y sus funciones en el controlador son un buen ejemplo completo para copiar.
+
 ### Reglas
 
 - **Errores para el usuario:** `throw new HttpError(404, 'Usuario no encontrado.')`. Cualquier otro error se convierte en un `500` genérico.
 - **SQL solo en `repositories/`.** Los controladores y servicios no importan `query`.
-- **Tokens JWT:** usa `signToken` / `verifyToken` de `services/tokenService.js`, no `jwt.sign` directo.
-- **Valores fijos de negocio** (cuota de 5 GB, rol por defecto, largo mínimo de contraseña): en `config/constants.js`.
+- **Tokens JWT:** usa `tokenService.js`, no `jwt.sign` directo. `signToken` / `verifyToken` son para sesiones; `signPurposeToken` / `verifyPurposeToken` son para los enlaces de los correos.
+- **Contraseñas:** `hashPassword` / `verifyPassword` de `passwordService.js`.
+- **Valores fijos de negocio** (cuota de 5 GB, rol por defecto, largo mínimo de contraseña, vigencia de los enlaces): en `config/constants.js`.
 - **Usuario en la respuesta:** pásalo siempre por `toPublicUser(row)` para no filtrar el hash de la contraseña. Hoy es una función interna de `authService.js`; si otro servicio la necesita, hay que exportarla o moverla a un archivo propio.
+- **Texto del usuario dentro de HTML** (correos): pásalo por `escapeHtml` (`utils/escapeHtml.js`).
 
 ---
 
@@ -135,15 +163,16 @@ Antes de escribir un componente nuevo, revisa si ya existe:
 |---|---|---|
 | `Icon` | `components/ui/` | `<Icon name="folder" size={18} />`. Nombres: `mail`, `lock`, `person`, `arrowRight`, `cloud`, `folder`, `folderPlus`, `file`, `clock`, `trash`, `card`, `logout`, `search`, `upload`, `alert`, `more`. Para un icono nuevo, agrégalo al catálogo de `Icon.jsx` |
 | `FieldInput` | `components/ui/` | Campo con etiqueta e icono. Si `type="password"`, trae su botón Mostrar/Ocultar |
-| `SubmitButton` | `components/ui/` | Botón de envío con estado de carga |
+| `SubmitButton` | `components/ui/` | Botón de envío de formulario con estado de carga |
+| `Button` | `components/ui/` | Botón normal. `variant`: `primary`, `secondary` o `danger` |
 | `TextButton` | `components/ui/` | Acción con apariencia de enlace (en lugar de un `<span onClick>`) |
-| `ErrorBanner` | `components/ui/` | Mensaje de error. En `integracion-refactor` lo reemplaza `Alert` (`<Alert>`, `<Alert type="success">`, `<Alert type="info">`) |
+| `Alert` | `components/ui/` | Mensajes: `<Alert>` (error), `<Alert type="success">`, `<Alert type="info">`. **Reemplaza a `ErrorBanner`** |
 | `BrandLogo` | `components/ui/` | Logo de VinCloud. `compact` para el menú lateral. **Reemplaza a `AuthLogo`** |
 | `AuthLayout` | `components/auth/` | Fondo + tarjeta + logo + títulos de las pantallas de autenticación |
 | `ViewHeader` | `components/dashboard/` | Encabezado de cada vista del panel |
 | `SearchInput`, `EmptyState`, `FileTable`, `StorageCard` | `components/dashboard/` | Buscador, estado vacío, tabla de archivos, uso de almacenamiento |
 
-**Archivos eliminados** (no se usaban): `AuthLogo.jsx`, `AuthRightPanel.jsx`, `App.css`, `assets/hero.png`, `assets/react.svg`, `assets/vite.svg`, `public/icons.svg` y el CSS de burbujas de `index.css`.
+**Archivos eliminados** (no se usaban o fueron reemplazados): `AuthLogo.jsx`, `AuthRightPanel.jsx`, `ErrorBanner.jsx`, `App.css`, `assets/hero.png`, `assets/react.svg`, `assets/vite.svg`, `public/icons.svg` y el CSS de burbujas de `index.css`.
 
 ### Colores
 
@@ -163,6 +192,10 @@ Solo hay que tocar **un archivo**, `components/dashboard/navigation.js`:
 ```
 
 El menú lateral y el área principal la toman de ahí. Hoy `suscripciones` no tiene `View` y por eso muestra "Vista en construcción".
+
+### Agregar una pantalla de autenticación
+
+Se registra en `App.jsx` (variable `currentScreen`). Las que se abren desde un enlace de correo (`?mode=...&token=...`) se agregan también a `EMAIL_LINK_SCREENS`.
 
 ### Llamadas a la API
 
@@ -188,21 +221,11 @@ Cuando haya más servicios (archivos, planes), conviene mover `request()` a un a
 
 ---
 
-## 7. Cómo integrar las otras ramas
+## 7. Validación de correo y recuperación de contraseña (rama `integracion`)
 
-Estado de las ramas el 11 de octubre de 2026:
+El trabajo de la rama `integracion` chocaba con el refactor en 6 archivos. Se resolvió moviendo cada pieza a la estructura nueva. **La rama `integracion` ya está contenida en `main`: no hace falta fusionarla de nuevo.**
 
-| Rama | Estado respecto a `main` | Qué hacer |
-|---|---|---|
-| `Front-` | Sin cambios pendientes (ya está en `main`) | Antes de seguir, traer el refactor: `git merge origin/refactor/principios-diseno` |
-| `RamaDB` | Sin cambios pendientes | Igual. Recordar el patrón `IF NOT EXISTS` para las tablas nuevas |
-| `integracion` | 2 commits sin subir a `main` ("verificacion correo": validación de correo y recuperación de contraseña) | **Ya integrada con el refactor en la rama `integracion-refactor`.** Ver abajo |
-
-### Rama `integracion`: ya está integrada en `integracion-refactor`
-
-La rama `integracion` (validación de correo y recuperación de contraseña, de Jimmy Quevedo) chocaba con el refactor en 6 archivos. **Ya se resolvió** en la rama `integracion-refactor`, que contiene el refactor más todo lo de `integracion`.
-
-**Lo que se conservó tal cual** (mismo contrato que en `integracion`):
+**Se conservó tal cual:**
 
 | Elemento | Valor |
 |---|---|
@@ -220,27 +243,20 @@ La rama `integracion` (validación de correo y recuperación de contraseña, de 
 | `verifyEmail`, `forgotPassword`, `resetPassword` en `authController.js` (con SQL, JWT y bcrypt dentro) | Controlador: 3 funciones cortas. La lógica está en `services/accountService.js` |
 | `query(...)` en el controlador | `markEmailVerified` y `updatePassword` en `repositories/userRepository.js` |
 | Validaciones en el controlador | `validateVerifyEmail`, `validateForgotPassword`, `validateResetPassword` en `validators/authValidator.js` |
-| `jwt.sign` / `jwt.verify` con `tipo` | `signPurposeToken` / `verifyPurposeToken` en `services/tokenService.js`; los tipos y vigencias están en `config/constants.js` |
-| `bcrypt` repetido | `services/passwordService.js` (`hashPassword`, `verifyPassword`) |
+| `jwt.sign` / `jwt.verify` con `tipo` | `signPurposeToken` / `verifyPurposeToken` en `services/tokenService.js` |
 | HTML de los dos correos, casi idéntico y repetido | `templates/actionEmailLayout.js` (estructura común) + `verificationEmail.js` y `passwordResetEmail.js` (solo los textos) |
-| `process.env.FRONTEND_URL` | `config.frontendUrl` en `config/env.js` |
+| `process.env.FRONTEND_URL` | `config.frontendUrl` |
 | Pantallas con el diseño anterior de dos paneles (`AuthLogo` + `AuthRightPanel`) | Las 3 pantallas usan `AuthLayout`, igual que Login y Registro |
 | `fetch` repetido en el `authService.js` del frontend | `forgotPassword`, `resetPassword` y `verifyEmail` usan `request()` |
 
-**Componentes nuevos del frontend:** `ui/Alert` (mensajes de error, éxito e información; **reemplaza a `ErrorBanner`**) y `ui/Button`.
-
-**Correcciones hechas al integrar** (cambian el comportamiento respecto a `integracion`):
+**Correcciones hechas al integrar** (cambian el comportamiento respecto a la rama original):
 
 1. **"Olvidé mi contraseña" revelaba qué correos existían:** respondía un mensaje distinto si la cuenta existía. Ahora responde siempre "Si el correo está registrado, se ha enviado un enlace de recuperación."
-2. **Un enlace de verificación o de recuperación servía como sesión:** al estar firmado con el mismo secreto, se podía usar como token de inicio de sesión. Ahora `authMiddleware` rechaza los tokens que llevan `tipo`.
-3. **Con el `.env.example` nuevo el sistema intentaba enviar correos con el valor de ejemplo** (`<TU_API_TOKEN_O_CONTRASENA>`) y fallaba. Ahora cualquier `SMTP_PASS` que empiece con `<` se trata como "sin configurar".
+2. **Un enlace de verificación o de recuperación servía como sesión:** al estar firmado con el mismo secreto, se podía usar como token de inicio de sesión. Ahora se rechaza.
+3. **Con el `.env.example` nuevo el sistema intentaba enviar correos con el valor de ejemplo** y fallaba. Ahora un `SMTP_PASS` que empieza con `<` se trata como "sin configurar".
 4. El nombre del usuario se escapa antes de insertarlo en el HTML de los correos.
 5. Se quitó un `package-lock.json` vacío que se había creado por error en la raíz del repositorio.
 6. Tras verificar el correo con la sesión abierta, el panel recarga el perfil para reflejar el cambio.
-
-Se conservó el script `npm run init-db` como alias de `npm run db:init`.
-
-**Pendiente de este módulo:** los enlaces de recuperación se pueden usar más de una vez durante sus 30 minutos, y cambiar la contraseña no cierra las sesiones abiertas. Resolverlo requiere guardar estado en la base de datos (por ejemplo, una tabla de tokens o una versión de sesión).
 
 ---
 
@@ -251,27 +267,20 @@ Con PostgreSQL real, en una base de datos temporal:
 | Prueba | Resultado |
 |---|---|
 | `db:init` ejecutado dos veces seguidas | ✅ |
-| Registro: `201`, 5 GB asignados, correo y nombre normalizados, sin exponer el hash | ✅ |
+| Registro: `201`, 5 GB asignados, `correoVerificado=false`, sin exponer el hash; se generan los correos de bienvenida y de verificación | ✅ |
 | Correo duplicado: `409` | ✅ |
 | Validaciones (campos faltantes, correo inválido, contraseña corta): `400` | ✅ |
 | Login correcto `200`; contraseña incorrecta o usuario inexistente `401` | ✅ |
 | `/auth/me`: `200` con token; `401` sin token o con token inválido | ✅ |
-| JSON mal formado `400`; ruta inexistente `404` | ✅ |
-| Un error interno responde `500` genérico, sin detalles de SQL | ✅ |
-| Frontend: `npm run build` y `npm run lint` | ✅ sin errores ni avisos |
-
-Rama `integracion-refactor`, además de lo anterior:
-
-| Prueba | Resultado |
-|---|---|
-| Registro: `correoVerificado=false` y se generan los correos de bienvenida y de verificación | ✅ |
+| JSON mal formado `400`; ruta inexistente `404`; error interno `500` genérico | ✅ |
 | `verify-email` con el enlace del correo: `200` y `/auth/me` refleja `correoVerificado=true` | ✅ |
 | `verify-email` sin token, con token inválido o con un token de sesión: `400` | ✅ |
 | Un token de verificación no sirve como sesión: `401` | ✅ |
 | `forgot-password`: misma respuesta exista o no el correo | ✅ |
 | `reset-password`: validaciones `400`; con el enlace del correo `200`; entra la contraseña nueva y no la anterior | ✅ |
 | Los correos escapan el HTML del nombre | ✅ |
-| Las pantallas de login, recuperar contraseña, nueva contraseña y verificación se abren en el navegador sin errores de consola | ✅ |
+| Frontend: `npm run build` y `npm run lint` sin errores ni avisos | ✅ |
+| Las pantallas de login, recuperar contraseña, nueva contraseña y verificación abren en el navegador sin errores de consola | ✅ |
 
 **No se probó:** el envío real de correos por SMTP, ni el panel después de iniciar sesión en el navegador.
 
@@ -280,10 +289,13 @@ Rama `integracion-refactor`, además de lo anterior:
 ## 9. Pendientes y decisiones para el equipo
 
 - **`espacio_disponible`:** el frontend lo interpreta como *espacio libre restante* (total = consumido + disponible). Si el equipo decide que es la *cuota total*, hay que cambiar `getStorageUsage` en `Front_/src/utils/user.js`.
+- **Seguridad pendiente:**
+  - Un enlace de recuperación se puede usar más de una vez durante sus 30 minutos.
+  - Cambiar la contraseña no cierra las sesiones ya abiertas.
+  - No hay límite de intentos de inicio de sesión.
 - **Estilos:** siguen escritos dentro de cada componente (ahora con los colores de `theme.js`). Pasarlos a archivos CSS sería el siguiente paso.
 - **Pruebas automáticas:** no hay. `app.js` quedó separado de `index.js` para poder probar la API sin abrir un puerto.
-- **Botones sin funcionalidad todavía:** "Subir archivo", "Nueva carpeta" y "Ampliar almacenamiento". ("¿Olvidaste tu contraseña?" ya funciona en `integracion-refactor`.)
-- **Seguridad pendiente:** no hay límite de intentos de inicio de sesión, y cambiar la contraseña no cerraría las sesiones ya abiertas.
-- **Diagramas:** el diagrama de arquitectura (`02-diseno/`) no refleja las capas nuevas del backend.
+- **Botones sin funcionalidad todavía:** "Subir archivo", "Nueva carpeta" y "Ampliar almacenamiento".
+- **Diagramas:** el diagrama de arquitectura (`docs/02-diseno/`) no refleja las capas nuevas del backend.
 
 > **Si `npm ci` falla con `UNABLE_TO_VERIFY_LEAF_SIGNATURE`:** es el firewall de la red (inspecciona HTTPS), no el proyecto. Prueba desde otra red.
