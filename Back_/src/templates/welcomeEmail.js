@@ -1,7 +1,5 @@
 import { DEFAULT_STORAGE_QUOTA_GB } from '../config/constants.js';
-
-const escapeHtml = (value) =>
-  String(value).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+import { escapeHtml } from '../utils/escapeHtml.js';
 
 /**
  * Contenido (asunto, texto y HTML) del correo de bienvenida.

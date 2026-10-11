@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import AuthLayout from '../../components/auth/AuthLayout';
 import FieldInput from '../../components/ui/FieldInput';
-import ErrorBanner from '../../components/ui/ErrorBanner';
+import Alert from '../../components/ui/Alert';
 import SubmitButton from '../../components/ui/SubmitButton';
 import TextButton from '../../components/ui/TextButton';
 import { login } from '../../services/authService';
 
-function LoginScreen({ onLogin, onGoToRegister }) {
+function LoginScreen({ onLogin, onGoToRegister, onGoToForgotPassword }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -47,9 +47,9 @@ function LoginScreen({ onLogin, onGoToRegister }) {
           onChange={setPassword}
           placeholder="Ingresa tu contraseña"
           autoComplete="current-password"
-          labelAction={<TextButton style={{ fontSize: 12 }}>¿Olvidaste tu contraseña?</TextButton>}
+          labelAction={<TextButton onClick={onGoToForgotPassword} style={{ fontSize: 12 }}>¿Olvidaste tu contraseña?</TextButton>}
         />
-        {error && <ErrorBanner msg={error} />}
+        {error && <Alert>{error}</Alert>}
         <SubmitButton loading={loading} label="Iniciar sesión" loadingLabel="Ingresando..." />
       </form>
     </AuthLayout>

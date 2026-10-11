@@ -39,3 +39,22 @@ export async function create({ rolNombre, nombre, correo, contrasenaHash, nivelA
   );
   return rows[0].id;
 }
+
+/**
+ * Marca el correo como verificado. Devuelve { id, nombre, correo } o null si el usuario no existe.
+ */
+export async function markEmailVerified(id) {
+  const { rows } = await query(
+    'UPDATE usuario SET correo_verificado = TRUE WHERE id = $1 RETURNING id, nombre, correo',
+    [id]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Cambia la contraseña. Devuelve false si el usuario no existe.
+ */
+export async function updatePassword(id, contrasenaHash) {
+  const { rowCount } = await query('UPDATE usuario SET contrasena_hash = $2 WHERE id = $1', [id, contrasenaHash]);
+  return rowCount > 0;
+}

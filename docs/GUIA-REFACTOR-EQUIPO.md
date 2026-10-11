@@ -137,7 +137,7 @@ Antes de escribir un componente nuevo, revisa si ya existe:
 | `FieldInput` | `components/ui/` | Campo con etiqueta e icono. Si `type="password"`, trae su botón Mostrar/Ocultar |
 | `SubmitButton` | `components/ui/` | Botón de envío con estado de carga |
 | `TextButton` | `components/ui/` | Acción con apariencia de enlace (en lugar de un `<span onClick>`) |
-| `ErrorBanner` | `components/ui/` | Mensaje de error |
+| `ErrorBanner` | `components/ui/` | Mensaje de error. En `integracion-refactor` lo reemplaza `Alert` (`<Alert>`, `<Alert type="success">`, `<Alert type="info">`) |
 | `BrandLogo` | `components/ui/` | Logo de VinCloud. `compact` para el menú lateral. **Reemplaza a `AuthLogo`** |
 | `AuthLayout` | `components/auth/` | Fondo + tarjeta + logo + títulos de las pantallas de autenticación |
 | `ViewHeader` | `components/dashboard/` | Encabezado de cada vista del panel |
@@ -196,29 +196,51 @@ Estado de las ramas el 11 de octubre de 2026:
 |---|---|---|
 | `Front-` | Sin cambios pendientes (ya está en `main`) | Antes de seguir, traer el refactor: `git merge origin/refactor/principios-diseno` |
 | `RamaDB` | Sin cambios pendientes | Igual. Recordar el patrón `IF NOT EXISTS` para las tablas nuevas |
-| `integracion` | **2 commits sin subir a `main`** ("verificacion correo": validación de correo y recuperación de contraseña) | **Tiene conflictos con el refactor.** Ver abajo |
+| `integracion` | 2 commits sin subir a `main` ("verificacion correo": validación de correo y recuperación de contraseña) | **Ya integrada con el refactor en la rama `integracion-refactor`.** Ver abajo |
 
-### Rama `integracion`: conflictos y cómo resolverlos
+### Rama `integracion`: ya está integrada en `integracion-refactor`
 
-Al unirla con el refactor hay conflicto en 6 archivos: `authController.js`, `emailService.js`, `testEmail.js`, `App.jsx`, `LoginScreen.jsx` y `Front_/src/services/authService.js`. Es normal: esos archivos se reescribieron.
+La rama `integracion` (validación de correo y recuperación de contraseña, de Jimmy Quevedo) chocaba con el refactor en 6 archivos. **Ya se resolvió** en la rama `integracion-refactor`, que contiene el refactor más todo lo de `integracion`.
 
-No conviene resolverlo línea por línea. Es más rápido **mover cada pieza a su lugar en la estructura nueva**:
+**Lo que se conservó tal cual** (mismo contrato que en `integracion`):
 
-| Lo que hay en `integracion` | Dónde va ahora |
+| Elemento | Valor |
 |---|---|
-| `verifyEmail`, `forgotPassword`, `resetPassword` en `authController.js` | Controlador: 3 funciones cortas. La lógica pasa a un servicio (por ejemplo `services/accountService.js`) |
-| Los `query(...)` dentro del controlador | Funciones en `repositories/userRepository.js` (por ejemplo `markEmailVerified`, `updatePassword`) |
-| Las validaciones de correo, token y contraseña | `validators/authValidator.js` |
-| `jwt.sign(...)` para los tokens de verificación y de recuperación | `services/tokenService.js` |
-| `sendVerificationEmail`, `sendPasswordResetEmail` | `services/emailService.js`. El HTML de cada correo va en `templates/` (como `welcomeEmail.js`) |
-| `process.env.FRONTEND_URL` | Agregar `frontendUrl` a `config/env.js` |
-| `ForgotPasswordScreen`, `ResetPasswordScreen`, `VerifyEmailScreen` | Se conservan. Pueden usar `AuthLayout`, `FieldInput` y `SubmitButton` para no repetir la tarjeta |
-| `forgotPassword`, `resetPassword`, `verifyEmail` del `authService.js` del frontend | Reescribirlas con `request()` (quedan en 2 o 3 líneas cada una) |
-| El script `init-db` de `package.json` | Ya existe como `db:init`; no hace falta duplicarlo |
+| Rutas | `POST /api/auth/verify-email`, `/forgot-password`, `/reset-password` |
+| Campos | `{ token }`, `{ correo }`, `{ token, nuevaContrasena }` |
+| Enlaces de los correos | `?mode=verify-email&token=…` y `?mode=reset-password&token=…` |
+| Vigencia | 24 horas (verificación) y 30 minutos (recuperación) |
+| Textos | Los de los correos y las pantallas |
+| Sin SMTP configurado | El enlace se imprime en la consola del backend (`[Simulacion de Correo]`) |
 
-Dos puntos de seguridad a revisar al moverlo:
-- Que "olvidé mi contraseña" responda **lo mismo** exista o no el correo, para no revelar qué cuentas hay.
-- Que el nombre del usuario se escape antes de insertarlo en el HTML del correo (hay un `escapeHtml` en `templates/welcomeEmail.js`; habría que exportarlo para reutilizarlo).
+**Dónde quedó cada pieza:**
+
+| Antes (en `integracion`) | Ahora |
+|---|---|
+| `verifyEmail`, `forgotPassword`, `resetPassword` en `authController.js` (con SQL, JWT y bcrypt dentro) | Controlador: 3 funciones cortas. La lógica está en `services/accountService.js` |
+| `query(...)` en el controlador | `markEmailVerified` y `updatePassword` en `repositories/userRepository.js` |
+| Validaciones en el controlador | `validateVerifyEmail`, `validateForgotPassword`, `validateResetPassword` en `validators/authValidator.js` |
+| `jwt.sign` / `jwt.verify` con `tipo` | `signPurposeToken` / `verifyPurposeToken` en `services/tokenService.js`; los tipos y vigencias están en `config/constants.js` |
+| `bcrypt` repetido | `services/passwordService.js` (`hashPassword`, `verifyPassword`) |
+| HTML de los dos correos, casi idéntico y repetido | `templates/actionEmailLayout.js` (estructura común) + `verificationEmail.js` y `passwordResetEmail.js` (solo los textos) |
+| `process.env.FRONTEND_URL` | `config.frontendUrl` en `config/env.js` |
+| Pantallas con el diseño anterior de dos paneles (`AuthLogo` + `AuthRightPanel`) | Las 3 pantallas usan `AuthLayout`, igual que Login y Registro |
+| `fetch` repetido en el `authService.js` del frontend | `forgotPassword`, `resetPassword` y `verifyEmail` usan `request()` |
+
+**Componentes nuevos del frontend:** `ui/Alert` (mensajes de error, éxito e información; **reemplaza a `ErrorBanner`**) y `ui/Button`.
+
+**Correcciones hechas al integrar** (cambian el comportamiento respecto a `integracion`):
+
+1. **"Olvidé mi contraseña" revelaba qué correos existían:** respondía un mensaje distinto si la cuenta existía. Ahora responde siempre "Si el correo está registrado, se ha enviado un enlace de recuperación."
+2. **Un enlace de verificación o de recuperación servía como sesión:** al estar firmado con el mismo secreto, se podía usar como token de inicio de sesión. Ahora `authMiddleware` rechaza los tokens que llevan `tipo`.
+3. **Con el `.env.example` nuevo el sistema intentaba enviar correos con el valor de ejemplo** (`<TU_API_TOKEN_O_CONTRASENA>`) y fallaba. Ahora cualquier `SMTP_PASS` que empiece con `<` se trata como "sin configurar".
+4. El nombre del usuario se escapa antes de insertarlo en el HTML de los correos.
+5. Se quitó un `package-lock.json` vacío que se había creado por error en la raíz del repositorio.
+6. Tras verificar el correo con la sesión abierta, el panel recarga el perfil para reflejar el cambio.
+
+Se conservó el script `npm run init-db` como alias de `npm run db:init`.
+
+**Pendiente de este módulo:** los enlaces de recuperación se pueden usar más de una vez durante sus 30 minutos, y cambiar la contraseña no cierra las sesiones abiertas. Resolverlo requiere guardar estado en la base de datos (por ejemplo, una tabla de tokens o una versión de sesión).
 
 ---
 
@@ -238,7 +260,20 @@ Con PostgreSQL real, en una base de datos temporal:
 | Un error interno responde `500` genérico, sin detalles de SQL | ✅ |
 | Frontend: `npm run build` y `npm run lint` | ✅ sin errores ni avisos |
 
-**No se probó:** el uso manual de las pantallas en el navegador (login, registro y panel), ni el envío real de correos por SMTP.
+Rama `integracion-refactor`, además de lo anterior:
+
+| Prueba | Resultado |
+|---|---|
+| Registro: `correoVerificado=false` y se generan los correos de bienvenida y de verificación | ✅ |
+| `verify-email` con el enlace del correo: `200` y `/auth/me` refleja `correoVerificado=true` | ✅ |
+| `verify-email` sin token, con token inválido o con un token de sesión: `400` | ✅ |
+| Un token de verificación no sirve como sesión: `401` | ✅ |
+| `forgot-password`: misma respuesta exista o no el correo | ✅ |
+| `reset-password`: validaciones `400`; con el enlace del correo `200`; entra la contraseña nueva y no la anterior | ✅ |
+| Los correos escapan el HTML del nombre | ✅ |
+| Las pantallas de login, recuperar contraseña, nueva contraseña y verificación se abren en el navegador sin errores de consola | ✅ |
+
+**No se probó:** el envío real de correos por SMTP, ni el panel después de iniciar sesión en el navegador.
 
 ---
 
@@ -247,7 +282,7 @@ Con PostgreSQL real, en una base de datos temporal:
 - **`espacio_disponible`:** el frontend lo interpreta como *espacio libre restante* (total = consumido + disponible). Si el equipo decide que es la *cuota total*, hay que cambiar `getStorageUsage` en `Front_/src/utils/user.js`.
 - **Estilos:** siguen escritos dentro de cada componente (ahora con los colores de `theme.js`). Pasarlos a archivos CSS sería el siguiente paso.
 - **Pruebas automáticas:** no hay. `app.js` quedó separado de `index.js` para poder probar la API sin abrir un puerto.
-- **Botones sin funcionalidad todavía:** "Subir archivo", "Nueva carpeta", "Ampliar almacenamiento" y "¿Olvidaste tu contraseña?".
+- **Botones sin funcionalidad todavía:** "Subir archivo", "Nueva carpeta" y "Ampliar almacenamiento". ("¿Olvidaste tu contraseña?" ya funciona en `integracion-refactor`.)
 - **Seguridad pendiente:** no hay límite de intentos de inicio de sesión, y cambiar la contraseña no cerraría las sesiones ya abiertas.
 - **Diagramas:** el diagrama de arquitectura (`02-diseno/`) no refleja las capas nuevas del backend.
 

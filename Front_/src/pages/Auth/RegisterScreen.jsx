@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import AuthLayout from '../../components/auth/AuthLayout';
 import FieldInput from '../../components/ui/FieldInput';
-import ErrorBanner from '../../components/ui/ErrorBanner';
+import Alert from '../../components/ui/Alert';
 import SubmitButton from '../../components/ui/SubmitButton';
 import TextButton from '../../components/ui/TextButton';
 import { register } from '../../services/authService';
@@ -60,7 +60,7 @@ function RegisterScreen({ onRegister, onGoToLogin }) {
           </div>
         </div>
 
-        {error && <ErrorBanner msg={error} />}
+        {error && <Alert>{error}</Alert>}
         <SubmitButton loading={loading} label="Crear mi cuenta" loadingLabel="Creando..." />
       </form>
     </AuthLayout>

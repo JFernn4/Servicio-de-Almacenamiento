@@ -5,6 +5,7 @@ import { colors } from '../../styles/theme';
 /**
  * Estructura común de las pantallas de autenticación: fondo animado,
  * tarjeta con logo, encabezado, contenido (formulario) y pie.
+ * `eyebrow`, `footer` y `legalText` son opcionales.
  */
 function AuthLayout({ eyebrow, title, subtitle, maxWidth = 460, footer, legalText, children }) {
   return (
@@ -29,9 +30,11 @@ function AuthLayout({ eyebrow, title, subtitle, maxWidth = 460, footer, legalTex
           <BrandLogo />
         </div>
 
-        <div style={{ fontSize: 11, fontWeight: 800, color: colors.primary, letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>
-          {eyebrow}
-        </div>
+        {eyebrow && (
+          <div style={{ fontSize: 11, fontWeight: 800, color: colors.primary, letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>
+            {eyebrow}
+          </div>
+        )}
         <h2 style={{ fontSize: 32, fontWeight: 800, color: colors.ink, margin: '0 0 12px', lineHeight: 1.1, letterSpacing: '-1px' }}>
           {title}
         </h2>
@@ -39,12 +42,16 @@ function AuthLayout({ eyebrow, title, subtitle, maxWidth = 460, footer, legalTex
 
         {children}
 
-        <p style={{ fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 28, marginBottom: 24 }}>{footer}</p>
+        {footer && (
+          <p style={{ fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 28, marginBottom: legalText ? 24 : 0 }}>{footer}</p>
+        )}
 
-        <p style={{ fontSize: 11, color: colors.subtle, textAlign: 'center', margin: 0 }}>
-          {legalText}, aceptas nuestros <span style={{ color: colors.primary }}>Términos de servicio</span> y{' '}
-          <span style={{ color: colors.primary }}>Política de privacidad</span>.
-        </p>
+        {legalText && (
+          <p style={{ fontSize: 11, color: colors.subtle, textAlign: 'center', margin: 0 }}>
+            {legalText}, aceptas nuestros <span style={{ color: colors.primary }}>Términos de servicio</span> y{' '}
+            <span style={{ color: colors.primary }}>Política de privacidad</span>.
+          </p>
+        )}
       </div>
     </div>
   );

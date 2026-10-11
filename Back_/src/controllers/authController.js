@@ -1,11 +1,21 @@
 import * as authService from '../services/authService.js';
-import { validateRegister, validateLogin } from '../validators/authValidator.js';
+import * as accountService from '../services/accountService.js';
+import {
+  validateRegister,
+  validateLogin,
+  validateVerifyEmail,
+  validateForgotPassword,
+  validateResetPassword,
+} from '../validators/authValidator.js';
 
 // Express 5 propaga automáticamente los errores de handlers async al errorHandler.
 
 export async function register(req, res) {
   const session = await authService.register(validateRegister(req.body));
-  res.status(201).json({ message: 'Usuario registrado exitosamente.', ...session });
+  res.status(201).json({
+    message: 'Usuario registrado exitosamente. Se ha enviado un correo de verificación.',
+    ...session,
+  });
 }
 
 export async function login(req, res) {
@@ -16,4 +26,27 @@ export async function login(req, res) {
 export async function getProfile(req, res) {
   const user = await authService.getProfile(req.user.id);
   res.status(200).json({ user });
+}
+
+export async function verifyEmail(req, res) {
+  const user = await accountService.verifyEmail(validateVerifyEmail(req.body));
+  res.status(200).json({
+    message: 'Correo electrónico verificado exitosamente. Tu cuenta ahora tiene acceso completo.',
+    user,
+  });
+}
+
+export async function forgotPassword(req, res) {
+  await accountService.requestPasswordReset(validateForgotPassword(req.body));
+  // Misma respuesta exista o no el correo, para no revelar qué cuentas hay
+  res.status(200).json({
+    message: 'Si el correo está registrado, se ha enviado un enlace de recuperación.',
+  });
+}
+
+export async function resetPassword(req, res) {
+  await accountService.resetPassword(validateResetPassword(req.body));
+  res.status(200).json({
+    message: 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión con tu nueva contraseña.',
+  });
 }

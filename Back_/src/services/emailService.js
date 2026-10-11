@@ -1,8 +1,8 @@
 import nodemailer from 'nodemailer';
 import { config } from '../config/env.js';
 import { welcomeEmail } from '../templates/welcomeEmail.js';
-
-const PLACEHOLDER_PASS = '<YOUR_API_TOKEN>';
+import { verificationEmail } from '../templates/verificationEmail.js';
+import { passwordResetEmail } from '../templates/passwordResetEmail.js';
 
 const transporter = nodemailer.createTransport({
   host: config.mail.host,
@@ -11,10 +11,11 @@ const transporter = nodemailer.createTransport({
 });
 
 /**
- * Indica si hay un token SMTP real configurado (no el valor de ejemplo).
+ * Indica si hay credenciales SMTP reales. Los valores de ejemplo de
+ * .env.example van entre < > (p. ej. <TU_API_TOKEN_O_CONTRASENA>).
  */
 export function isEmailConfigured() {
-  return Boolean(config.mail.pass) && config.mail.pass !== PLACEHOLDER_PASS;
+  return Boolean(config.mail.pass) && !config.mail.pass.startsWith('<');
 }
 
 /**
@@ -29,6 +30,34 @@ export async function sendEmail({ to, subject, text, html }) {
   return transporter.sendMail({ from: config.mail.from, to, subject, text, html });
 }
 
+/**
+ * Enlace del frontend que abre una pantalla con el token del correo.
+ */
+const frontendLink = (mode, token) =>
+  `${config.frontendUrl}?mode=${mode}&token=${encodeURIComponent(token)}`;
+
+/**
+ * Sin SMTP configurado, muestra el enlace en consola para poder probar el flujo.
+ */
+function logSimulatedLink(label, to, url) {
+  if (!isEmailConfigured()) {
+    console.log(`[Simulacion de Correo] Enlace de ${label} para ${to}:`);
+    console.log(url);
+  }
+}
+
 export function sendWelcomeEmail(correo, nombre) {
   return sendEmail({ to: correo, ...welcomeEmail({ correo, nombre }) });
+}
+
+export function sendVerificationEmail(correo, nombre, token) {
+  const verificationUrl = frontendLink('verify-email', token);
+  logSimulatedLink('Verificacion', correo, verificationUrl);
+  return sendEmail({ to: correo, ...verificationEmail({ nombre, verificationUrl }) });
+}
+
+export function sendPasswordResetEmail(correo, nombre, token) {
+  const resetUrl = frontendLink('reset-password', token);
+  logSimulatedLink('Restablecimiento', correo, resetUrl);
+  return sendEmail({ to: correo, ...passwordResetEmail({ nombre, resetUrl }) });
 }

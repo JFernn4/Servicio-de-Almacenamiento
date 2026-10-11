@@ -1,15 +1,16 @@
-import bcrypt from 'bcryptjs';
 import * as userRepository from '../repositories/userRepository.js';
-import { signToken } from './tokenService.js';
-import { sendWelcomeEmail } from './emailService.js';
+import { signToken, signPurposeToken } from './tokenService.js';
+import { hashPassword, verifyPassword } from './passwordService.js';
+import { sendWelcomeEmail, sendVerificationEmail } from './emailService.js';
 import { HttpError } from '../utils/httpError.js';
 import {
   DEFAULT_ROLE,
   DEFAULT_ACCESS_LEVEL,
   DEFAULT_STORAGE_QUOTA_BYTES,
+  TOKEN_PURPOSES,
+  EMAIL_VERIFICATION_EXPIRES_IN,
 } from '../config/constants.js';
 
-const BCRYPT_SALT_ROUNDS = 10;
 const PG_UNIQUE_VIOLATION = '23505';
 
 /**
@@ -21,6 +22,7 @@ function toPublicUser(row) {
     nombre: row.nombre,
     correo: row.correo,
     rol: row.rol_nombre,
+    correoVerificado: row.correo_verificado,
     nivelAcceso: row.nivel_acceso,
     espacioConsumido: Number(row.espacio_consumido),
     espacioDisponible: Number(row.espacio_disponible),
@@ -34,7 +36,7 @@ function buildSession(row) {
 }
 
 export async function register({ nombre, correo, contrasena }) {
-  const contrasenaHash = await bcrypt.hash(contrasena, BCRYPT_SALT_ROUNDS);
+  const contrasenaHash = await hashPassword(contrasena);
 
   let userId;
   try {
@@ -55,9 +57,14 @@ export async function register({ nombre, correo, contrasena }) {
 
   const row = await userRepository.findById(userId);
 
+  const verificationToken = signPurposeToken(row, TOKEN_PURPOSES.EMAIL_VERIFICATION, EMAIL_VERIFICATION_EXPIRES_IN);
+
   // En segundo plano: un fallo de correo no debe impedir el registro
   sendWelcomeEmail(row.correo, row.nombre).catch((err) => {
     console.error('[EmailService] Error al enviar correo de bienvenida:', err.message);
+  });
+  sendVerificationEmail(row.correo, row.nombre, verificationToken).catch((err) => {
+    console.error('[EmailService] Error al enviar correo de verificación:', err.message);
   });
 
   return buildSession(row);
@@ -65,7 +72,7 @@ export async function register({ nombre, correo, contrasena }) {
 
 export async function login({ correo, contrasena }) {
   const row = await userRepository.findByEmailWithPassword(correo);
-  const isValid = row && (await bcrypt.compare(contrasena, row.contrasena_hash));
+  const isValid = row && (await verifyPassword(contrasena, row.contrasena_hash));
 
   if (!isValid) {
     throw new HttpError(401, 'Credenciales inválidas. Verifica tu correo y contraseña.');

@@ -12,6 +12,8 @@ export const config = {
   port: Number(env.PORT) || 5000,
   nodeEnv: env.NODE_ENV || 'development',
   corsOrigin: env.CORS_ORIGIN || 'http://localhost:5173',
+  // URL del frontend para los enlaces de los correos (verificación y recuperación)
+  frontendUrl: env.FRONTEND_URL || 'http://localhost:5173',
 
   db: {
     host: env.DB_HOST || 'localhost',

@@ -40,3 +40,33 @@ export function validateLogin(body = {}) {
 
   return { correo, contrasena };
 }
+
+export function validateVerifyEmail(body = {}) {
+  const token = asText(body.token);
+  if (!token) {
+    throw new HttpError(400, 'El token de verificación es requerido.');
+  }
+  return { token };
+}
+
+export function validateForgotPassword(body = {}) {
+  const correo = normalizeEmail(body.correo);
+  if (!correo) {
+    throw new HttpError(400, 'Debes proporcionar tu correo electrónico.');
+  }
+  return { correo };
+}
+
+export function validateResetPassword(body = {}) {
+  const token = asText(body.token);
+  const nuevaContrasena = typeof body.nuevaContrasena === 'string' ? body.nuevaContrasena : '';
+
+  if (!token || !nuevaContrasena) {
+    throw new HttpError(400, 'El token y la nueva contraseña son requeridos.');
+  }
+  if (nuevaContrasena.length < MIN_PASSWORD_LENGTH) {
+    throw new HttpError(400, `La nueva contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+  }
+
+  return { token, nuevaContrasena };
+}

@@ -83,3 +83,32 @@ export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
 }
+
+/**
+ * Solicitar enlace de recuperación de contraseña. Devuelve { message }.
+ */
+export function forgotPassword(correo) {
+  return request('/auth/forgot-password', { method: 'POST', body: { correo } });
+}
+
+/**
+ * Restablecer la contraseña con el token del correo. Devuelve { message }.
+ */
+export function resetPassword(token, nuevaContrasena) {
+  return request('/auth/reset-password', { method: 'POST', body: { token, nuevaContrasena } });
+}
+
+/**
+ * Verificar el correo con el token del enlace. Devuelve { message, user }.
+ */
+export async function verifyEmail(token) {
+  const data = await request('/auth/verify-email', { method: 'POST', body: { token } });
+
+  // Si es el usuario con sesión abierta en este navegador, reflejarlo en lo guardado
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.id === data.user.id) {
+    localStorage.setItem(USER_KEY, JSON.stringify({ ...currentUser, correoVerificado: true }));
+  }
+
+  return data;
+}
