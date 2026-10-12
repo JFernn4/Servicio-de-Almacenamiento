@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prueba de Asignación de Roles - VinCloud</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: #F5F4F4;
+      color: #1E293B;
+      padding: 32px 16px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: #FFFFFF;
+      max-width: 580px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 20px rgba(59, 10, 31, 0.08);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #3B0A1F 0%, #7D1535 100%);
+      color: #FFFFFF;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .header p {
+      font-size: 13px;
+      opacity: 0.9;
+      margin-top: 6px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 99px;
+      margin-top: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .content {
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .section {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #3B0A1F;
+      margin-bottom: 6px;
+    }
+
+    .section-desc {
+      font-size: 12.5px;
+      color: #64748B;
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #3B0A1F;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13.5px;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      background: #FFFFFF;
+      color: #1E293B;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #7D1535;
+    }
+
+    .role-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .role-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1.5px solid #CBD5E1;
+      border-radius: 6px;
+      background: #FFFFFF;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1E293B;
+      transition: all 0.2s;
+    }
+
+    .role-option:hover {
+      border-color: #7D1535;
+    }
+
+    .role-option input[type="radio"] {
+      accent-color: #7D1535;
+    }
+
+    .role-option.selected {
+      border-color: #7D1535;
+      background: #FDF2F4;
+      color: #7D1535;
+    }
+
+    .btn {
+      width: 100%;
+      background-color: #7D1535;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 6px;
+      padding: 11px;
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-top: 6px;
+    }
+
+    .btn:hover {
+      background-color: #5D0F27;
+    }
+
+    .btn-secondary {
+      background-color: #334155;
+    }
+
+    .btn-secondary:hover {
+      background-color: #1E293B;
+    }
+
+    .result-box {
+      border-radius: 6px;
+      padding: 14px;
+      font-size: 13px;
+      display: none;
+      margin-top: 14px;
+      line-height: 1.5;
+      word-break: break-all;
+    }
+
+    .result-success {
+      background-color: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      color: #166534;
+    }
+
+    .result-error {
+      background-color: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: #991B1B;
+    }
+
+    .role-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .pill-admin {
+      background: #FDF2F4;
+      color: #7D1535;
+      border: 1px solid #FBCFE8;
+    }
+
+    .pill-usuario {
+      background: #EFF6FF;
+      color: #1D4ED8;
+      border: 1px solid #BFDBFE;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>VinCloud</h1>
+      <p>Entorno de Pruebas: Asignación de Roles en Autenticación</p>
+      <div class="badge">Borrador de Pruebas Temporal</div>
+    </div>
+
+    <div class="content">
+      <!-- 1. Registro con tipo de cuenta -->
+      <div class="section">
+        <div class="section-title">1. Crear Cuenta con Tipo de Cuenta / Rol</div>
+        <div class="section-desc">
+          Prueba la asignación automática de rol (Administrador vs Usuario) al crear una cuenta.
+        </div>
+
+        <form id="form-register">
+          <div class="form-group">
+            <label for="reg-nombre">Nombre completo</label>
+            <input type="text" id="reg-nombre" placeholder="Ej. Ana Morales" required>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-correo">Correo electrónico</label>
+            <input type="email" id="reg-correo" placeholder="Ej. ana.morales@vincloud.com" required>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-pass">Contraseña</label>
+            <input type="password" id="reg-pass" placeholder="Mínimo 6 caracteres" required>
+          </div>
+
+          <div class="form-group">
+            <label>Tipo de Cuenta que desea crear:</label>
+            <div class="role-options">
+              <label class="role-option selected" id="opt-admin">
+                <input type="radio" name="tipoCuenta" value="administrador" checked onchange="updateRadioSelection()">
+                🛡️ Administrador
+              </label>
+              <label class="role-option" id="opt-user">
+                <input type="radio" name="tipoCuenta" value="usuario" onchange="updateRadioSelection()">
+                👤 Usuario Estándar
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn" id="btn-register">Crear Cuenta y Asignar Rol</button>
+        </form>
+
+        <div id="res-register" class="result-box"></div>
+      </div>
+
+      <!-- 2. Inicio de sesión -->
+      <div class="section">
+        <div class="section-title">2. Iniciar Sesión (Login) y Verificar Rol</div>
+        <div class="section-desc">
+          Inicia sesión para comprobar el rol devuelto por la API y su token JWT.
+        </div>
+
+        <form id="form-login">
+          <div class="form-group">
+            <label for="login-correo">Correo electrónico</label>
+            <input type="email" id="login-correo" placeholder="correo@ejemplo.com" required>
+          </div>
+
+          <div class="form-group">
+            <label for="login-pass">Contraseña</label>
+            <input type="password" id="login-pass" placeholder="Tu contraseña" required>
+          </div>
+
+          <div class="form-group">
+            <label for="login-tipo">Validación opcional de rol al entrar:</label>
+            <select id="login-tipo">
+              <option value="">Cualquier Rol (Estándar)</option>
+              <option value="administrador">Exigir rol: Administrador</option>
+              <option value="usuario">Exigir rol: Usuario</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-secondary" id="btn-login">Iniciar Sesión</button>
+        </form>
+
+        <div id="res-login" class="result-box"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:5000/api/auth';
+
+    function updateRadioSelection() {
+      const selected = document.querySelector('input[name="tipoCuenta"]:checked').value;
+      document.getElementById('opt-admin').classList.toggle('selected', selected === 'administrador');
+      document.getElementById('opt-user').classList.toggle('selected', selected === 'usuario');
+    }
+
+    function showResult(elementId, success, message) {
+      const box = document.getElementById(elementId);
+      box.style.display = 'block';
+      box.className = 'result-box ' + (success ? 'result-success' : 'result-error');
+      box.innerHTML = message;
+    }
+
+    // Registro
+    document.getElementById('form-register').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btn-register');
+      btn.disabled = true;
+      btn.textContent = 'Creando cuenta...';
+
+      const nombre = document.getElementById('reg-nombre').value.trim();
+      const correo = document.getElementById('reg-correo').value.trim();
+      const contrasena = document.getElementById('reg-pass').value;
+      const tipoCuenta = document.querySelector('input[name="tipoCuenta"]:checked').value;
+
+      try {
+        const res = await fetch(`${API_URL}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombre, correo, contrasena, tipoCuenta })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showResult('res-register', false, `<strong>❌ Error (${res.status}):</strong> ${data.error || 'No se pudo crear la cuenta.'}`);
+        } else {
+          const pillClass = data.user.rol === 'Administrador' ? 'pill-admin' : 'pill-usuario';
+          showResult('res-register', true, `
+            <strong>✅ Cuenta Creada Exitosamente:</strong><br>
+            • <strong>ID:</strong> ${data.user.id}<br>
+            • <strong>Nombre:</strong> ${data.user.nombre}<br>
+            • <strong>Correo:</strong> ${data.user.correo}<br>
+            • <strong>Rol Asignado:</strong> <span class="role-pill ${pillClass}">${data.user.rol}</span><br>
+            • <strong>Nivel de Acceso:</strong> ${data.user.nivelAcceso}<br>
+            • <strong>Token JWT emitido:</strong> <small>${data.token.substring(0, 32)}...</small>
+          `);
+
+          // Rellenar automáticamente el login para facilitar la prueba
+          document.getElementById('login-correo').value = correo;
+          document.getElementById('login-pass').value = contrasena;
+        }
+      } catch (err) {
+        showResult('res-register', false, `<strong>❌ Error de conexión:</strong> ${err.message}. Asegúrate de que el backend esté corriendo en el puerto 5000.`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Crear Cuenta y Asignar Rol';
+      }
+    });
+
+    // Login
+    document.getElementById('form-login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btn-login');
+      btn.disabled = true;
+      btn.textContent = 'Iniciando sesión...';
+
+      const correo = document.getElementById('login-correo').value.trim();
+      const contrasena = document.getElementById('login-pass').value;
+      const tipoCuenta = document.getElementById('login-tipo').value;
+
+      const payload = { correo, contrasena };
+      if (tipoCuenta) payload.tipoCuenta = tipoCuenta;
+
+      try {
+        const res = await fetch(`${API_URL}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showResult('res-login', false, `<strong>❌ Error (${res.status}):</strong> ${data.error || 'Error al iniciar sesión.'}`);
+        } else {
+          const pillClass = data.user.rol === 'Administrador' ? 'pill-admin' : 'pill-usuario';
+          showResult('res-login', true, `
+            <strong>✅ Sesión Iniciada Correctamente:</strong><br>
+            • <strong>Usuario:</strong> ${data.user.nombre} (${data.user.correo})<br>
+            • <strong>Rol Actual:</strong> <span class="role-pill ${pillClass}">${data.user.rol}</span><br>
+            • <strong>Nivel de Acceso:</strong> ${data.user.nivelAcceso}<br>
+            • <strong>Espacio Disponible:</strong> ${(data.user.espacioDisponible / (1024*1024*1024)).toFixed(1)} GB<br>
+            • <strong>Token JWT:</strong> <small>${data.token.substring(0, 32)}...</small>
+          `);
+        }
+      } catch (err) {
+        showResult('res-login', false, `<strong>❌ Error de conexión:</strong> ${err.message}. Asegúrate de que el backend esté corriendo en el puerto 5000.`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Iniciar Sesión';
+      }
+    });
+  </script>
+</body>
+</html>

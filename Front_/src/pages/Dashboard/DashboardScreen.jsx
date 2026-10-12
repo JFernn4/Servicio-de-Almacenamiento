@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import AuthLogo from '../../components/auth/AuthLogo';
+import { resendVerification } from '../../services/authService';
 
 function formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
@@ -10,10 +11,27 @@ function formatBytes(bytes) {
 }
 
 function DashboardScreen({ user, onLogout }) {
+  const [resending, setResending] = useState(false);
+  const [resendStatus, setResendStatus] = useState(null); // { success: boolean, msg: string }
+
   const espacioConsumido = user?.espacioConsumido || 0;
   const espacioDisponible = user?.espacioDisponible || 5368709120;
   const totalEspacio = espacioConsumido + espacioDisponible;
   const porcentajeUso = totalEspacio > 0 ? Math.min(100, Math.round((espacioConsumido / totalEspacio) * 100)) : 0;
+
+  async function handleResendVerification() {
+    if (!user?.correo) return;
+    setResending(true);
+    setResendStatus(null);
+    try {
+      const data = await resendVerification(user.correo);
+      setResendStatus({ success: true, msg: data.message || "Correo de verificación enviado exitosamente." });
+    } catch (err) {
+      setResendStatus({ success: false, msg: err.message || "No se pudo reenviar el correo de verificación." });
+    } finally {
+      setResending(false);
+    }
+  }
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F8FAFC", display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif" }}>
@@ -79,6 +97,62 @@ function DashboardScreen({ user, onLogout }) {
 
       {/* Contenido principal */}
       <main style={{ maxWidth: "1100px", width: "100%", margin: "40px auto", padding: "0 24px", boxSizing: "border-box" }}>
+        
+        {/* Banner de Correo No Verificado */}
+        {!user?.correoVerificado && (
+          <div style={{
+            backgroundColor: "#FFFBEB",
+            border: "1px solid #FDE68A",
+            borderRadius: "12px",
+            padding: "16px 20px",
+            marginBottom: "24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "12px"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#92400E", fontSize: "13.5px" }}>
+              <span style={{ fontSize: "18px" }}>✉️</span>
+              <span>
+                <strong>Tu correo electrónico aún no ha sido verificado.</strong> Revisa tu bandeja de entrada en <strong>{user?.correo}</strong> para confirmar tu cuenta.
+              </span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              {resendStatus && (
+                <span style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: resendStatus.success ? "#16A34A" : "#DC2626"
+                }}>
+                  {resendStatus.msg}
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resending}
+                style={{
+                  backgroundColor: "#7D1535",
+                  color: "#FFFFFF",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "8px 14px",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  cursor: resending ? "not-allowed" : "pointer",
+                  opacity: resending ? 0.7 : 1,
+                  transition: "background-color 0.2s"
+                }}
+              >
+                {resending ? "Reenviando..." : "Reenviar correo"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Banner de bienvenida */}
         <div style={{
           background: "linear-gradient(135deg, #3B0A1F 0%, #7D1535 100%)",

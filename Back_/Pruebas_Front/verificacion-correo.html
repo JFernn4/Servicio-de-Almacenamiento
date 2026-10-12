@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Borrador - Verificación de Correo | VinCloud</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: #F5F4F4;
+      color: #1E293B;
+      padding: 32px 16px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: #FFFFFF;
+      max-width: 520px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 20px rgba(59, 10, 31, 0.08);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #3B0A1F 0%, #7D1535 100%);
+      color: #FFFFFF;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .header p {
+      font-size: 13px;
+      opacity: 0.9;
+      margin-top: 6px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 99px;
+      margin-top: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .content {
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .section {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #3B0A1F;
+      margin-bottom: 6px;
+    }
+
+    .section-desc {
+      font-size: 12.5px;
+      color: #64748B;
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #3B0A1F;
+    }
+
+    input[type="text"],
+    input[type="email"] {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13.5px;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      background: #FFFFFF;
+      color: #1E293B;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      border-color: #7D1535;
+      box-shadow: 0 0 0 2px rgba(125, 21, 53, 0.15);
+    }
+
+    button {
+      width: 100%;
+      background: #7D1535;
+      color: #FFFFFF;
+      border: none;
+      padding: 11px 16px;
+      font-size: 13.5px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background: #5D0F27;
+    }
+
+    button:disabled {
+      background: #94A3B8;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #3B0A1F;
+    }
+
+    .btn-secondary:hover {
+      background: #250513;
+    }
+
+    .feedback {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      line-height: 1.4;
+      display: none;
+    }
+
+    .feedback.success {
+      display: block;
+      background: #DCFCE7;
+      color: #166534;
+      border: 1px solid #BBF7D0;
+    }
+
+    .feedback.error {
+      display: block;
+      background: #FEE2E2;
+      color: #991B1B;
+      border: 1px solid #FECACA;
+    }
+
+    .feedback.info {
+      display: block;
+      background: #E0F2FE;
+      color: #075985;
+      border: 1px solid #BAE6FD;
+    }
+
+    .footer {
+      border-top: 1px solid #E2E8F0;
+      padding: 14px 24px;
+      background: #F8FAFC;
+      font-size: 11.5px;
+      color: #94A3B8;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1>VinCloud</h1>
+      <p>Módulo de Verificación de Correo Electrónico</p>
+      <div class="badge">Borrador Temporal de Pruebas</div>
+    </div>
+
+    <div class="content">
+      <!-- Sección 1: Validar Token de Verificación -->
+      <div class="section">
+        <h2 class="section-title">1. Verificar Cuenta con Token</h2>
+        <p class="section-desc">
+          Introduce el token de verificación recibido por correo electrónico para activar la cuenta.
+        </p>
+
+        <form id="verifyForm">
+          <div class="form-group">
+            <label for="tokenInput">Token de Verificación</label>
+            <input type="text" id="tokenInput" placeholder="Pega el token JWT aquí..." required />
+          </div>
+          <button type="submit" id="btnVerify">Verificar Cuenta</button>
+        </form>
+
+        <div id="verifyFeedback" class="feedback"></div>
+      </div>
+
+      <!-- Sección 2: Reenviar Correo de Verificación -->
+      <div class="section">
+        <h2 class="section-title">2. ¿No recibiste el correo? Reenviar</h2>
+        <p class="section-desc">
+          Ingresa la dirección de correo registrada para enviar un nuevo enlace de activación.
+        </p>
+
+        <form id="resendForm">
+          <div class="form-group">
+            <label for="emailInput">Correo Electrónico</label>
+            <input type="email" id="emailInput" placeholder="usuario@correo.com" required />
+          </div>
+          <button type="submit" id="btnResend" class="btn-secondary">Reenviar Correo</button>
+        </form>
+
+        <div id="resendFeedback" class="feedback"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Endpoint API conectado a <code>http://localhost:5000/api/auth</code>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:5000/api/auth';
+
+    // Auto-completar el token si viene en la query string (?token=...)
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get('token');
+      if (tokenFromUrl) {
+        document.getElementById('tokenInput').value = tokenFromUrl;
+        showFeedback('verifyFeedback', 'info', 'Token detectado automáticamente desde la URL. Haz clic en "Verificar Cuenta".');
+      }
+    });
+
+    function showFeedback(elementId, type, message) {
+      const el = document.getElementById(elementId);
+      el.className = `feedback ${type}`;
+      el.textContent = message;
+    }
+
+    // 1. Manejar verificación de correo
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const token = document.getElementById('tokenInput').value.trim();
+      const btn = document.getElementById('btnVerify');
+
+      if (!token) {
+        showFeedback('verifyFeedback', 'error', 'Por favor ingresa un token.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Verificando...';
+
+      try {
+        const response = await fetch(`${API_BASE}/verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ token })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showFeedback(
+            'verifyFeedback',
+            'success',
+            `✅ ${data.message || '¡Cuenta verificada exitosamente!'}`
+          );
+        } else {
+          showFeedback(
+            'verifyFeedback',
+            'error',
+            `❌ ${data.error || 'No se pudo verificar el token.'}`
+          );
+        }
+      } catch (err) {
+        showFeedback(
+          'verifyFeedback',
+          'error',
+          '❌ Error de conexión con el servidor. Asegúrate de que el backend esté encendido en el puerto 5000.'
+        );
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Verificar Cuenta';
+      }
+    });
+
+    // 2. Manejar reenvío de correo
+    document.getElementById('resendForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const correo = document.getElementById('emailInput').value.trim();
+      const btn = document.getElementById('btnResend');
+
+      if (!correo) {
+        showFeedback('resendFeedback', 'error', 'Por favor ingresa un correo.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+
+      try {
+        const response = await fetch(`${API_BASE}/resend-verification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ correo })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showFeedback(
+            'resendFeedback',
+            'success',
+            `✉️ ${data.message || 'Correo de verificación reenviado exitosamente.'}`
+          );
+        } else {
+          showFeedback(
+            'resendFeedback',
+            'error',
+            `❌ ${data.error || 'Error al reenviar correo de verificación.'}`
+          );
+        }
+      } catch (err) {
+        showFeedback(
+          'resendFeedback',
+          'error',
+          '❌ Error de conexión con el servidor backend.'
+        );
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Reenviar Correo';
+      }
+    });
+  </script>
+</body>
+</html>

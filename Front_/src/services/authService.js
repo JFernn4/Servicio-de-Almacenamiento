@@ -1,47 +1,71 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 /**
- * Iniciar sesión con correo y contraseña
+ * Iniciar sesión con correo y contraseña (y tipo de cuenta opcional)
  */
-export async function login(correo, contrasena) {
-  const response = await fetch(`${API_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ correo, contrasena }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || 'Error al iniciar sesión.');
+export async function login(correo, contrasena, tipoCuenta) {
+  const payload = { correo, contrasena };
+  if (tipoCuenta) {
+    payload.tipoCuenta = tipoCuenta;
   }
 
-  setSession(data.token, data.user);
-  return data;
+  try {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al iniciar sesión.');
+    }
+
+    setSession(data.token, data.user);
+    return data;
+  } catch (error) {
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('No se pudo conectar con el servidor de VinCloud. Verifica que el backend esté activo.');
+    }
+    throw error;
+  }
 }
 
 /**
- * Registrar un nuevo usuario
+ * Registrar un nuevo usuario (con tipo de cuenta / rol opcional)
  */
-export async function register(nombre, correo, contrasena) {
-  const response = await fetch(`${API_URL}/auth/register`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ nombre, correo, contrasena }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || 'Error al registrar la cuenta.');
+export async function register(nombre, correo, contrasena, tipoCuenta) {
+  const payload = { nombre, correo, contrasena };
+  if (tipoCuenta) {
+    payload.tipoCuenta = tipoCuenta;
   }
 
-  setSession(data.token, data.user);
-  return data;
+  try {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al registrar la cuenta.');
+    }
+
+    setSession(data.token, data.user);
+    return data;
+  } catch (error) {
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('No se pudo conectar con el servidor de VinCloud. Verifica que el backend esté activo.');
+    }
+    throw error;
+  }
 }
 
 /**
@@ -67,6 +91,84 @@ export async function getProfile() {
     localStorage.setItem('vincloud_user', JSON.stringify(data.user));
   }
   return data.user;
+}
+
+/**
+ * Solicitar enlace de recuperación de contraseña (¿Olvidaste tu contraseña?)
+ */
+export async function forgotPassword(correo) {
+  try {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ correo }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al solicitar recuperación de contraseña.');
+    }
+    return data;
+  } catch (error) {
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('No se pudo conectar con el servidor de VinCloud. Verifica que el backend esté activo.');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Restablecer contraseña utilizando el token recibido
+ */
+export async function resetPassword(token, nuevaContrasena) {
+  try {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, nuevaContrasena }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al restablecer contraseña.');
+    }
+    return data;
+  } catch (error) {
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('No se pudo conectar con el servidor de VinCloud. Verifica que el backend esté activo.');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Reenviar correo de verificación de cuenta
+ */
+export async function resendVerification(correo) {
+  try {
+    const response = await fetch(`${API_URL}/auth/resend-verification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ correo }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al reenviar correo de verificación.');
+    }
+    return data;
+  } catch (error) {
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('No se pudo conectar con el servidor de VinCloud. Verifica que el backend esté activo.');
+    }
+    throw error;
+  }
 }
 
 /**
