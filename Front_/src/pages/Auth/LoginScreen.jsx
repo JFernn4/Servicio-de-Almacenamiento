@@ -1,20 +1,18 @@
-import React, { useState } from 'react';
-
-import AuthLogo from '../../components/auth/AuthLogo';
+import { useState } from 'react';
+import AuthLayout from '../../components/auth/AuthLayout';
 import FieldInput from '../../components/ui/FieldInput';
-import ErrorBanner from '../../components/ui/ErrorBanner';
+import Alert from '../../components/ui/Alert';
 import SubmitButton from '../../components/ui/SubmitButton';
 import AuthRightPanel from '../../components/auth/AuthRightPanel';
 import { login, forgotPassword, resetPassword } from '../../services/authService';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function LoginScreen({ onLogin, onGoToRegister }) {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [showPass, setShowPass] = useState(false);
-    const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
+function LoginScreen({ onLogin, onGoToRegister, onGoToForgotPassword }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
     // Estados para el flujo de recuperación de contraseña ("¿Olvidaste tu contraseña?")
     const [showForgotModal, setShowForgotModal] = useState(false);
@@ -56,6 +54,8 @@ function LoginScreen({ onLogin, onGoToRegister }) {
             setLoading(false);
         }
     }
+    setError('');
+    setLoading(true);
 
     // Manejar envío de solicitud de restablecimiento
     async function handleForgotSubmit(e) {

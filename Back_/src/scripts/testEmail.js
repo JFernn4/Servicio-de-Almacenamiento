@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { sendEmail, sendWelcomeEmail, sendVerificationEmail, isEmailConfigured } from '../services/emailService.js';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -6,10 +7,15 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+=======
+import { config } from '../config/env.js';
+import { sendEmail, isEmailConfigured } from '../services/emailService.js';
+>>>>>>> 5e07a74602692b66d05e3dd5f090a5a1cffb657b
 
 import nodemailer from 'nodemailer';
 
 async function runEmailTest() {
+<<<<<<< HEAD
   const isPreview = process.argv.includes('--preview') || process.argv.includes('--ethereal');
   const isVerify = process.argv.includes('--verify') || process.argv.includes('--verification');
   const recipient = process.env.TEST_EMAIL_RECIPIENT || 'andresmaza2309@gmail.com';
@@ -116,6 +122,30 @@ async function runEmailTest() {
       console.log('   3. Para previsualizar el diseño en tu navegador sin configurar nada:');
       console.log('      node src/scripts/testEmail.js --preview\n');
     }
+=======
+  const recipient = process.env.TEST_EMAIL_RECIPIENT;
+
+  console.log('📬 --- Prueba de correo SMTP ---');
+  console.log(`Host: ${config.mail.host}:${config.mail.port}`);
+  console.log('From:', config.mail.from);
+  console.log('To:', recipient);
+
+  if (!isEmailConfigured() || !recipient) {
+    console.log('\n⚠️ Configura SMTP_PASS y TEST_EMAIL_RECIPIENT en Back_/.env y vuelve a ejecutar: npm run test:email');
+    return;
+  }
+
+  try {
+    const info = await sendEmail({
+      to: recipient,
+      subject: 'Prueba de VinCloud',
+      text: 'Este es un correo de prueba.',
+    });
+    console.log('\n✅ Correo enviado. Message ID:', info.messageId);
+  } catch (error) {
+    console.error('\n❌ Error al enviar el correo:', error.message);
+    process.exitCode = 1;
+>>>>>>> 5e07a74602692b66d05e3dd5f090a5a1cffb657b
   }
 }
 

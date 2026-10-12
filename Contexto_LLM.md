@@ -33,6 +33,6 @@ El proyecto es, valga la redundancia, un proyecto universitario desarollado por 
 + Docker Compose
 + GitHub Actions
 
-## Guiate para los cambios segun lo existente en docs. 
+## Guiate para los cambios segun lo existente en la carpeta docs. 
 
 # Asegurate de que tus cambios queden registrados en ARQUITECTURA_BACKEND.md

@@ -1,4 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const TOKEN_KEY = 'vincloud_token';
+const USER_KEY = 'vincloud_user';
 
 /**
  * Iniciar sesión con correo y contraseña (y tipo de cuenta opcional)
@@ -174,35 +176,65 @@ export async function resendVerification(correo) {
 /**
  * Guardar datos de sesión localmente
  */
-export function setSession(token, user) {
-  if (token) localStorage.setItem('vincloud_token', token);
-  if (user) localStorage.setItem('vincloud_user', JSON.stringify(user));
-}
-
-/**
- * Obtener token almacenado
- */
-export function getToken() {
-  return localStorage.getItem('vincloud_token');
-}
-
-/**
- * Obtener usuario almacenado
- */
-export function getCurrentUser() {
-  const raw = localStorage.getItem('vincloud_user');
-  if (!raw) return null;
+function getCurrentUser() {
   try {
-    return JSON.parse(raw);
+    return JSON.parse(localStorage.getItem(USER_KEY));
   } catch {
     return null;
   }
 }
 
 /**
- * Limpiar sesión (Logout)
+ * Valida la sesión guardada contra el backend. Si el token ya no es válido
+ * cierra la sesión; si el servidor no responde conserva el usuario guardado.
  */
+export async function getProfile() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+
+  try {
+    const { user } = await request('/auth/me', { token });
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    return user;
+  } catch (error) {
+    if (error.status) {
+      clearSession();
+      return null;
+    }
+    return getCurrentUser();
+  }
+}
+
 export function clearSession() {
-  localStorage.removeItem('vincloud_token');
-  localStorage.removeItem('vincloud_user');
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
+/**
+ * Solicitar enlace de recuperación de contraseña. Devuelve { message }.
+ */
+export function forgotPassword(correo) {
+  return request('/auth/forgot-password', { method: 'POST', body: { correo } });
+}
+
+/**
+ * Restablecer la contraseña con el token del correo. Devuelve { message }.
+ */
+export function resetPassword(token, nuevaContrasena) {
+  return request('/auth/reset-password', { method: 'POST', body: { token, nuevaContrasena } });
+}
+
+/**
+ * Verificar el correo con el token del enlace. Devuelve { message, user }.
+ */
+export async function verifyEmail(token) {
+  const data = await request('/auth/verify-email', { method: 'POST', body: { token } });
+
+  // Si es el usuario con sesión abierta en este navegador, reflejarlo en lo guardado
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.id === data.user.id) {
+    localStorage.setItem(USER_KEY, JSON.stringify({ ...currentUser, correoVerificado: true }));
+  }
+
+  return data;
 }

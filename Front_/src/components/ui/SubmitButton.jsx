@@ -1,24 +1,33 @@
-import React from 'react';
+import Icon from './Icon';
+import { colors } from '../../styles/theme';
 
 function SubmitButton({ loading, label, loadingLabel }) {
-    return (
-        <button
-            type="submit"
-            disabled={loading}
-            style={{
-                background: loading ? "#9e2a4a" : "#7D1535",
-                color: "#fff",
-                padding: "14px",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: loading ? "not-allowed" : "pointer",
-                transition: "background 0.2s"
-            }}
-        >
-            {loading ? loadingLabel : label}
-        </button>
-    );
+  return (
+    <button
+      type="submit"
+      disabled={loading}
+      style={{
+        background: colors.primary,
+        color: '#fff',
+        border: 'none',
+        borderRadius: 12,
+        padding: 14,
+        fontSize: 15,
+        fontWeight: 700,
+        cursor: loading ? 'not-allowed' : 'pointer',
+        opacity: loading ? 0.7 : 1,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 4,
+        boxShadow: '0 4px 12px rgba(125, 21, 53, 0.3)',
+      }}
+    >
+      {loading ? loadingLabel : label}
+      {!loading && <Icon name="arrowRight" strokeWidth={2.5} />}
+    </button>
+  );
 }
+
 export default SubmitButton;
