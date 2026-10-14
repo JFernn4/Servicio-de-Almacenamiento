@@ -42,7 +42,7 @@ Servicio-de-Almacenamiento/
 ├── docs/                         # Documentación de diseño, UML y manuales
 │   ├── 01-requisitos/
 │   ├── 02-diseno/                # Diagramas de arquitectura, ER y UML
-│   ├── 03-manuales/              # Guías técnicas (GUIA_MULTER_Y_TECNOLOGIAS.md)
+│   ├── 03-manuales/              # Guías técnicas (GUIA_MULTER_Y_TECNOLOGIAS.md, GUIA_USO_API.md)
 │   └── 04-mockups/               # Prototipos y capturas de Figma
 ├── database/                     # Definición y scripts SQL de la base de datos
 │   ├── inicializacion/
@@ -63,15 +63,25 @@ Servicio-de-Almacenamiento/
         ├── controllers/
         │   └── authController.js # Lógica de negocio (register, login, getProfile, verifyEmail, resendVerification)
         ├── middlewares/
-        │   └── authMiddleware.js # Middleware de validación de JWT (authenticateToken)
+        │   ├── authMiddleware.js     # Middleware de validación de JWT (authenticateToken)
+        │   ├── errorHandler.js       # Manejo centralizado de 404 y errores HTTP
+        │   └── uploadMiddleware.js   # Carga y almacenamiento en disco con Multer
+        ├── repositories/
+        │   ├── userRepository.js     # Consultas SQL de usuarios y cuotas de almacenamiento
+        │   ├── fileRepository.js     # Consultas SQL para archivos (CRUD, búsquedas, recientes)
+        │   └── folderRepository.js   # Consultas SQL para carpetas (jerarquías, conteo recursivo)
         ├── routes/
-        │   └── authRoutes.js     # Rutas REST de autenticación (/api/auth)
+        │   └── authRoutes.js         # Rutas REST de autenticación (/api/auth)
         ├── services/
-        │   └── emailService.js   # Generación de templates HTML y despacho de correos (bienvenida y verificación)
+        │   ├── accountService.js     # Verificación de correo y recuperación de contraseñas
+        │   ├── authService.js        # Lógica de registro, login y consulta de perfil
+        │   ├── emailService.js       # Generación de templates HTML y despacho de correos
+        │   ├── passwordService.js    # Hashing y validación de contraseñas con bcrypt
+        │   ├── storageService.js     # Lógica de almacenamiento, cuotas atómicas y gestión física
+        │   └── tokenService.js       # Firma y validación de tokens JWT
         └── scripts/
-            ├── initDb.js         # Automatización de creación de BD, schema y seed
-            └── testEmail.js      # Verificación y pruebas del transporte SMTP
-
+            ├── initDb.js             # Automatización de creación de BD, schema y seed
+            └── testEmail.js          # Verificación y pruebas del transporte SMTP
 ```
 
 ---
@@ -99,6 +109,29 @@ Representa las cuentas de usuario registradas.
 - `nivel_acceso` (`VARCHAR(50) NOT NULL`): Nivel asignado (`'estandar'`).
 - `espacio_consumido` (`BIGINT NOT NULL DEFAULT 0 CHECK (espacio_consumido >= 0)`): Bytes consumidos.
 - `espacio_disponible` (`BIGINT NOT NULL DEFAULT 0 CHECK (espacio_disponible >= 0)`): Bytes totales asignados (5 GB por defecto = `5,368,709,120` bytes).
+
+#### Tabla `carpeta`
+Representa la estructura jerárquica de directorios del usuario.
+- `id` (`INTEGER GENERATED ALWAYS AS IDENTITY`): Llave primaria.
+- `usuario_id` (`INTEGER NOT NULL`): Llave foránea hacia `usuario(id)` con `ON DELETE CASCADE`.
+- `carpeta_padre_id` (`INTEGER`): Llave foránea recursiva hacia `carpeta(id)` con `ON DELETE CASCADE` (`NULL` para la raíz).
+- `nombre` (`VARCHAR(255) NOT NULL`): Nombre de la carpeta.
+- `fecha_creacion` (`DATE NOT NULL DEFAULT CURRENT_DATE`): Fecha de creación.
+
+#### Tabla `archivo`
+Representa los archivos subidos por el usuario a una carpeta o al directorio raíz.
+- `id` (`INTEGER GENERATED ALWAYS AS IDENTITY`): Llave primaria.
+- `usuario_id` (`INTEGER NOT NULL`): Llave foránea hacia `usuario(id)` con `ON DELETE CASCADE`.
+- `carpeta_id` (`INTEGER`): Llave foránea hacia `carpeta(id)` con `ON DELETE SET NULL` (`NULL` si se ubica en la raíz).
+- `nombre` (`VARCHAR(255) NOT NULL`): Nombre original del archivo.
+- `tamano` (`BIGINT NOT NULL CHECK (tamano >= 0)`): Tamaño en bytes del archivo.
+- `tipo` (`VARCHAR(100) NOT NULL`): Tipo de archivo o MIME type.
+- `fecha_subida` (`DATE NOT NULL DEFAULT CURRENT_DATE`): Fecha en que se completó la subida.
+
+#### Tablas de Soporte de Planes y Suscripciones
+- `plan`: Catálogo de planes (`id`, `nombre`, `descripcion`, `precio`, `capacidad_almacenamiento`, `vigencia_dias`).
+- `suscripcion`: Contratación de planes por usuario (`id`, `usuario_id`, `plan_id`, `fecha_inicio`, `fecha_renovacion`, `estado`).
+- `pago`: Registro de transacciones asociadas a la suscripción (`id`, `usuario_id`, `suscripcion_id`, `monto`, `fecha`, `estado`).
 
 ---
 
@@ -174,6 +207,24 @@ flowchart TD
 - **`sendVerificationEmail(destinatario, nombre, token)`**: Correo con botón y enlace de activación (`GET /api/auth/verify?token=...`), más el token en texto para validación manual en interfaces de prueba.
 - **`sendPasswordResetEmail(destinatario, nombre, token)`**: Correo con botón y enlace para restablecer la contraseña (`/?resetToken=...`), más el código para ingreso manual en la aplicación.
 
+### 5.6. Middleware de Carga de Archivos ([`src/middlewares/uploadMiddleware.js`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/src/middlewares/uploadMiddleware.js))
+- Configura `multer.diskStorage` apuntando al directorio de subidas (`uploads/`).
+- Genera identificadores únicos por archivo (`Date.now() - crypto.randomUUID()`) preservando su extensión para evitar colisiones.
+- Filtra extensiones potencialmente ejecutables o riesgosas (`.exe`, `.sh`, `.bat`, etc.) devolviendo un error `400`.
+- Controla el límite de tamaño individual (100 MB por defecto) y transforma excepciones nativas de Multer (`MulterError`) en instancias seguras de `HttpError`.
+
+### 5.7. Servicio de Almacenamiento ([`src/services/storageService.js`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/src/services/storageService.js))
+Implementa las reglas de negocio del sistema de archivos y cuotas:
+- **`uploadFile`**: Valida que la carpeta de destino pertenezca al usuario; comprueba la cuota disponible en PostgreSQL (`espacio_consumido + fileSize <= espacio_disponible`); inserta los metadatos en la tabla `archivo`; renombra el archivo físico en disco con su ID único (`<id>.<ext>`); e incrementa atómicamente el espacio consumido. Si la cuota se excede o la base de datos falla, elimina inmediatamente el archivo temporal del disco para evitar huérfanos.
+- **`getFileForDownload`**: Comprueba permisos sobre el archivo y existencia física en disco antes de suministrarlo para su descarga en streaming.
+- **`deleteFile`**: Elimina el registro en la base de datos, decrementa la cuota del usuario y borra el archivo físico del disco.
+- **`renameFile`**: Valida y actualiza el nombre del archivo.
+- **`getDirectoryContents`**: Recupera en paralelo carpetas y archivos para el nivel solicitado (raíz o subcarpeta).
+- **`getRecentFiles`**: Devuelve los últimos archivos creados para la vista de Recientes.
+- **`searchFiles`**: Realiza búsquedas insensible a mayúsculas sobre el nombre de archivos del usuario.
+- **`createFolder` / `renameFolder`**: Gestión de carpetas jerárquicas.
+- **`deleteFolder`**: Mediante una consulta recursiva (`WITH RECURSIVE`), recopila todos los archivos del árbol a eliminar, borra los binarios de disco, recalcula y libera la cuota total consumida, y elimina la carpeta de la base de datos con borrado en cascada.
+
 ---
 
 ## 6. Especificación de Endpoints (API REST)
@@ -191,6 +242,16 @@ flowchart TD
 | `POST` | `/auth/resend-verification` | Pública | Reenvía correo con nuevo token si la cuenta no ha sido verificada |
 | `POST` | `/auth/forgot-password` | Pública | Envía correo con token para restablecer contraseña |
 | `POST` | `/auth/reset-password` | Pública | Restablece la contraseña con token válido y nueva clave |
+| `POST` | `/storage/upload` | Requerida (Bearer) | Sube un archivo con `multipart/form-data` y valida cuota |
+| `GET` | `/storage/files` | Requerida (Bearer) | Lista carpetas y archivos (opcional `?carpetaId=...`) |
+| `GET` | `/storage/files/recent` | Requerida (Bearer) | Obtiene los archivos más recientes (opcional `?limit=...`) |
+| `GET` | `/storage/files/search` | Requerida (Bearer) | Busca archivos por coincidencia en el nombre (`?q=...`) |
+| `GET` | `/storage/files/:id/download` | Requerida (Bearer) | Descarga el archivo binario en streaming seguro |
+| `PATCH` | `/storage/files/:id` | Requerida (Bearer) | Renombra un archivo (`{ nuevoNombre }`) |
+| `DELETE` | `/storage/files/:id` | Requerida (Bearer) | Elimina un archivo del disco y libera cuota |
+| `POST` | `/storage/folders` | Requerida (Bearer) | Crea una carpeta (`{ nombre, carpetaPadreId }`) |
+| `PATCH` | `/storage/folders/:id` | Requerida (Bearer) | Renombra una carpeta (`{ nuevoNombre }`) |
+| `DELETE` | `/storage/folders/:id` | Requerida (Bearer) | Elimina una carpeta y sus contenidos liberando cuota |
 
 #### Ejemplo de Petición: `POST /api/auth/register`
 ```json

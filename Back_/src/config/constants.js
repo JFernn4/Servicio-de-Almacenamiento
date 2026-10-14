@@ -12,3 +12,7 @@ export const TOKEN_PURPOSES = {
 };
 export const EMAIL_VERIFICATION_EXPIRES_IN = '24h';
 export const PASSWORD_RESET_EXPIRES_IN = '30m';
+
+// Parámetros del módulo de almacenamiento
+export const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB por archivo
+export const FORBIDDEN_FILE_EXTENSIONS = ['.exe', '.sh', '.bat', '.cmd', '.vbs', '.com', '.msi'];

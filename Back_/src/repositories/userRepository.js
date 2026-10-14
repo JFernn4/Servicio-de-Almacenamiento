@@ -58,3 +58,42 @@ export async function updatePassword(id, contrasenaHash) {
   const { rowCount } = await query('UPDATE usuario SET contrasena_hash = $2 WHERE id = $1', [id, contrasenaHash]);
   return rowCount > 0;
 }
+
+/**
+ * Consulta la cuota actual de almacenamiento del usuario.
+ */
+export async function getStorageQuota(id) {
+  const { rows } = await query(
+    'SELECT espacio_consumido, espacio_disponible FROM usuario WHERE id = $1',
+    [id]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Incrementa atómicamente el espacio consumido del usuario.
+ */
+export async function incrementConsumedSpace(id, bytes) {
+  const { rows } = await query(
+    `UPDATE usuario
+     SET espacio_consumido = espacio_consumido + $1
+     WHERE id = $2
+     RETURNING espacio_consumido, espacio_disponible`,
+    [bytes, id]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Decrementa atómicamente el espacio consumido del usuario sin permitir valores negativos.
+ */
+export async function decrementConsumedSpace(id, bytes) {
+  const { rows } = await query(
+    `UPDATE usuario
+     SET espacio_consumido = GREATEST(0, espacio_consumido - $1)
+     WHERE id = $2
+     RETURNING espacio_consumido, espacio_disponible`,
+    [bytes, id]
+  );
+  return rows[0] ?? null;
+}

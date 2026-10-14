@@ -35,4 +35,8 @@ export const config = {
     pass: env.SMTP_PASS,
     from: env.EMAIL_FROM || 'VinCloud <no-reply@vincloud.com>',
   },
+
+  storage: {
+    uploadDir: env.UPLOAD_DIR ? path.resolve(env.UPLOAD_DIR) : path.resolve(__dirname, '../../uploads'),
+  },
 };
