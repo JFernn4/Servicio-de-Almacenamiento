@@ -48,7 +48,11 @@ function Sidebar({ user, activeTab, onSelectTab, onLogout }) {
 
         <StorageCard user={user} />
 
-        <button type="button" style={{ width: '100%', padding: '10px 0', background: colors.primary, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 24 }}>
+        <button
+          type="button"
+          onClick={() => onSelectTab('suscripciones')}
+          style={{ width: '100%', padding: '10px 0', background: colors.primary, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 24, transition: 'background 0.2s ease' }}
+        >
           Ampliar almacenamiento
         </button>
 
