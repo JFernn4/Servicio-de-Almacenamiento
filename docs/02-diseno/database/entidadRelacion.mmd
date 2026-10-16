@@ -1,0 +1,81 @@
+%% Diagrama entidad-relación de VinCloud, notación de Chen (fuente de entidadRelacion.png)
+%% Editar este archivo y regenerar el PNG en https://mermaid.live
+flowchart TB
+    %% ---------- Entidades ----------
+    Rol[Rol]
+    Usuario[Usuario]
+    Plan[Plan]
+    Suscripcion[Suscripción]
+    Pago[Pago]
+    Carpeta[Carpeta]
+    Archivo[Archivo]
+
+    %% ---------- Relaciones ----------
+    Tiene{Tiene}
+    Contrata{Contrata}
+    Incluye{Incluye}
+    Genera{Genera}
+    Realiza{Realiza}
+    Crea{Crea}
+    Jerarquia{Contiene jerarquía}
+    Almacena{Almacena}
+    Sube{Sube}
+
+    Rol ---|1| Tiene ---|N| Usuario
+    Usuario ---|1| Contrata ---|N| Suscripcion
+    Plan ---|1| Incluye ---|N| Suscripcion
+    Suscripcion ---|1| Genera ---|N| Pago
+    Usuario ---|1| Realiza ---|N| Pago
+    Usuario ---|1| Crea ---|N| Carpeta
+    Carpeta ---|1| Jerarquia ---|N| Carpeta
+    Carpeta ---|1| Almacena ---|N| Archivo
+    Usuario ---|1| Sube ---|N| Archivo
+
+    %% ---------- Atributos ----------
+    rol_id(["i̲d̲"]) --- Rol
+    rol_nombre([nombre]) --- Rol
+
+    Usuario --- u_id(["i̲d̲"])
+    Usuario --- u_nombre([nombre])
+    Usuario --- u_correo([correo])
+    Usuario --- u_hash([contrasenaHash])
+    Usuario --- u_fecha([fechaRegistro])
+    Usuario --- u_verif([correoVerificado])
+    Usuario --- u_nivel([nivelAcceso])
+    Usuario --- u_cons([espacioConsumido])
+    Usuario --- u_disp([espacioDisponible])
+
+    Plan --- p_id(["i̲d̲"])
+    Plan --- p_nombre([nombre])
+    Plan --- p_desc([descripcion])
+    Plan --- p_precio([precio])
+    Plan --- p_cap([capacidadAlmacenamiento])
+    Plan --- p_vig([vigenciaDias])
+    Plan --- p_activo([activo])
+
+    Suscripcion --- s_id(["i̲d̲"])
+    Suscripcion --- s_ini([fechaInicio])
+    Suscripcion --- s_ren([fechaRenovacion])
+    Suscripcion --- s_estado([estado])
+
+    Pago --- pg_id(["i̲d̲"])
+    Pago --- pg_monto([monto])
+    Pago --- pg_fecha([fecha])
+    Pago --- pg_estado([estado])
+    Pago --- pg_tipo([tipo])
+    Pago --- pg_ref([referencia])
+    Pago --- pg_tarjeta([tarjetaUltimos4])
+
+    Carpeta --- c_id(["i̲d̲"])
+    Carpeta --- c_nombre([nombre])
+    Carpeta --- c_fecha([fechaCreacion])
+
+    Archivo --- a_id(["i̲d̲"])
+    Archivo --- a_nombre([nombre])
+    Archivo --- a_tamano([tamano])
+    Archivo --- a_tipo([tipo])
+    Archivo --- a_fecha([fechaSubida])
+
+    %% Atributos nuevos del Avance 2 resaltados
+    classDef nuevo fill:#FDF2F5,stroke:#7D1535,stroke-width:2px,color:#3B0A1F
+    class p_activo,pg_tipo,pg_ref,pg_tarjeta nuevo
