@@ -17,6 +17,7 @@ router.post('/login', login);
 router.get('/me', authenticateToken, getProfile);
 router.get('/verify', verifyEmail);
 router.post('/verify', verifyEmail);
+router.post('/verify-email', verifyEmail);
 router.post('/resend-verification', resendVerification);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);

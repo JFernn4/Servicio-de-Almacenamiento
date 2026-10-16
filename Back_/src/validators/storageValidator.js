@@ -24,6 +24,9 @@ export function validateCreateFolder(body = {}) {
   if (nombre.length > 255) {
     throw new HttpError(400, 'El nombre de la carpeta no puede exceder los 255 caracteres.');
   }
+  if (/[/\\]/.test(nombre)) {
+    throw new HttpError(400, 'El nombre de la carpeta no puede contener barras (/ o \\).');
+  }
 
   let carpetaPadreId = null;
   if (body.carpetaPadreId !== undefined && body.carpetaPadreId !== null && body.carpetaPadreId !== '') {
@@ -43,6 +46,9 @@ export function validateRename(body = {}) {
   }
   if (nuevoNombre.length > 255) {
     throw new HttpError(400, 'El nuevo nombre no puede exceder los 255 caracteres.');
+  }
+  if (/[/\\]/.test(nuevoNombre)) {
+    throw new HttpError(400, 'El nuevo nombre no puede contener barras (/ o \\).');
   }
 
   return { nuevoNombre };

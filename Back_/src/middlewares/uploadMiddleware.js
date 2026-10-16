@@ -25,8 +25,29 @@ const storage = multer.diskStorage({
   },
 });
 
-// Filtro de seguridad para extensiones potencialmente ejecutables
+/**
+ * Corrige la codificación latin1 por defecto de Busboy/Multer a UTF-8 (para tildes y ñ).
+ */
+function normalizeFilename(name = '') {
+  try {
+    const decoded = Buffer.from(name, 'latin1').toString('utf8');
+    return decoded.includes('\uFFFD') ? name : decoded;
+  } catch {
+    return name;
+  }
+}
+
+// Filtro de seguridad para extensiones potencialmente ejecutables y nombres válidos
 const fileFilter = (req, file, cb) => {
+  file.originalname = path.basename(normalizeFilename(file.originalname)).trim();
+
+  if (!file.originalname || file.originalname.length > 255) {
+    return cb(
+      new HttpError(400, 'El nombre del archivo no es válido o excede los 255 caracteres.'),
+      false
+    );
+  }
+
   const extension = path.extname(file.originalname).toLowerCase();
   if (FORBIDDEN_FILE_EXTENSIONS.includes(extension)) {
     return cb(

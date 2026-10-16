@@ -31,14 +31,63 @@ export async function downloadFile(req, res) {
 }
 
 /**
- * Elimina un archivo y libera la cuota de almacenamiento correspondiente.
+ * Mueve un archivo a la papelera o lo elimina permanentemente si se indica ?permanent=true.
  */
 export async function deleteFile(req, res) {
   const archivoId = validateId(req.params.id, 'archivo');
-  const resultado = await storageService.deleteFile(archivoId, req.user.id);
+  const permanent = req.query.permanent === 'true';
+  const resultado = await storageService.deleteFile(archivoId, req.user.id, { permanent });
 
   res.status(200).json({
-    message: 'Archivo eliminado exitosamente.',
+    message: resultado.enPapelera
+      ? 'Archivo movido a la papelera.'
+      : 'Archivo eliminado permanentemente.',
+    ...resultado,
+  });
+}
+
+/**
+ * Lista los archivos en la papelera del usuario.
+ */
+export async function getTrashFiles(req, res) {
+  const archivos = await storageService.getTrashFiles(req.user.id);
+  res.status(200).json({ archivos });
+}
+
+/**
+ * Restaura un archivo desde la papelera.
+ */
+export async function restoreFile(req, res) {
+  const archivoId = validateId(req.params.id, 'archivo');
+  const archivo = await storageService.restoreFile(archivoId, req.user.id);
+
+  res.status(200).json({
+    message: 'Archivo restaurado exitosamente.',
+    archivo,
+  });
+}
+
+/**
+ * Elimina permanentemente un archivo de la papelera y libera su espacio.
+ */
+export async function permanentDeleteFile(req, res) {
+  const archivoId = validateId(req.params.id, 'archivo');
+  const resultado = await storageService.permanentDeleteFile(archivoId, req.user.id);
+
+  res.status(200).json({
+    message: 'Archivo eliminado permanentemente.',
+    ...resultado,
+  });
+}
+
+/**
+ * Vacía todos los archivos de la papelera del usuario.
+ */
+export async function emptyTrash(req, res) {
+  const resultado = await storageService.emptyTrash(req.user.id);
+
+  res.status(200).json({
+    message: 'Papelera vaciada exitosamente.',
     ...resultado,
   });
 }
@@ -132,3 +181,58 @@ export async function deleteFolder(req, res) {
     ...resultado,
   });
 }
+
+/**
+ * Envía el archivo en modo inline para su visualización en el navegador ("Visualizar archivos").
+ */
+export async function viewFile(req, res) {
+  const archivoId = validateId(req.params.id, 'archivo');
+  const { physicalPath, nombre, tipo } = await storageService.getFileForDownload(archivoId, req.user.id);
+
+  res.setHeader('Content-Type', tipo || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nombre)}"`);
+  res.sendFile(physicalPath);
+}
+
+/**
+ * Genera un enlace de invitación compartido y opcionalmente lo envía por correo a otro usuario.
+ */
+export async function shareFile(req, res) {
+  const archivoId = validateId(req.params.id, 'archivo');
+  const correoDestinatario = req.body?.correoDestinatario || req.body?.correo || '';
+
+  const resultado = await storageService.createShareInvitation(archivoId, req.user.id, {
+    correoDestinatario,
+  });
+
+  res.status(200).json({
+    message: resultado.destinatario
+      ? `Invitación enviada exitosamente a ${resultado.destinatario.correo}.`
+      : 'Enlace de invitación generado exitosamente.',
+    ...resultado,
+  });
+}
+
+/**
+ * Obtiene los metadatos públicos de un archivo compartido mediante su token de invitación.
+ */
+export async function getSharedFileInfo(req, res) {
+  const archivo = await storageService.getSharedFileInfo(req.params.token);
+  res.status(200).json({ archivo });
+}
+
+/**
+ * Descarga o visualiza (?inline=true) un archivo público/compartido mediante su token de invitación.
+ */
+export async function downloadSharedFile(req, res) {
+  const { physicalPath, nombre, tipo } = await storageService.getSharedFileForDownload(req.params.token);
+
+  if (req.query.inline === 'true') {
+    res.setHeader('Content-Type', tipo || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nombre)}"`);
+    return res.sendFile(physicalPath);
+  }
+
+  return res.download(physicalPath, nombre);
+}
+

@@ -1,11 +1,11 @@
 import { NAV_ITEMS } from './navigation';
 import { colors } from '../../styles/theme';
 
-function MainContent({ activeTab }) {
+function MainContent({ activeTab, onRefreshUser }) {
   const item = NAV_ITEMS.find((navItem) => navItem.id === activeTab);
 
   if (item?.View) {
-    return <item.View />;
+    return <item.View onRefreshUser={onRefreshUser} />;
   }
 
   return (

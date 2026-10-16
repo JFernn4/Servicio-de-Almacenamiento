@@ -8,7 +8,11 @@ import { notFound, errorHandler } from './middlewares/errorHandler.js';
 
 const app = express();
 
-app.use(cors({ origin: config.corsOrigin }));
+app.use(
+  cors({
+    origin: config.nodeEnv === 'production' ? config.corsOrigin : true,
+  })
+);
 app.use(express.json());
 
 if (config.nodeEnv !== 'production') {

@@ -4,12 +4,13 @@ import RegisterScreen from './pages/Auth/RegisterScreen';
 import ForgotPasswordScreen from './pages/Auth/ForgotPasswordScreen';
 import ResetPasswordScreen from './pages/Auth/ResetPasswordScreen';
 import VerifyEmailScreen from './pages/Auth/VerifyEmailScreen';
+import SharedFileScreen from './pages/Auth/SharedFileScreen';
 import DashboardScreen from './pages/Dashboard/DashboardScreen';
 import { clearSession, getProfile } from './services/authService';
 import { colors } from './styles/theme';
 
 // Pantallas que se abren desde un enlace de correo: ?mode=<pantalla>&token=...
-const EMAIL_LINK_SCREENS = ['reset-password', 'verify-email'];
+const EMAIL_LINK_SCREENS = ['reset-password', 'verify-email', 'shared-file'];
 
 /**
  * Pantalla inicial según la URL. Se lee una sola vez, al cargar la aplicación.
@@ -24,7 +25,7 @@ function readInitialScreen() {
 const initial = readInitialScreen();
 
 function App() {
-  // 'login' | 'register' | 'forgot-password' | 'reset-password' | 'verify-email'
+  // 'login' | 'register' | 'forgot-password' | 'reset-password' | 'verify-email' | 'shared-file'
   const [currentScreen, setCurrentScreen] = useState(initial.screen);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -76,9 +77,18 @@ function App() {
   if (currentScreen === 'reset-password') {
     return <ResetPasswordScreen token={initial.token} onGoToLogin={() => navigate('login')} />;
   }
+  if (currentScreen === 'shared-file') {
+    return <SharedFileScreen token={initial.token} onGoToLogin={() => navigate('login')} />;
+  }
 
   if (user) {
-    return <DashboardScreen user={user} onLogout={handleLogout} />;
+    return (
+      <DashboardScreen
+        user={user}
+        onLogout={handleLogout}
+        onRefreshUser={async () => setUser(await getProfile())}
+      />
+    );
   }
 
   if (currentScreen === 'register') {

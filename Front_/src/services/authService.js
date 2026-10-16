@@ -2,179 +2,63 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const TOKEN_KEY = 'vincloud_token';
 const USER_KEY = 'vincloud_user';
 
-/**
- * Iniciar sesión con correo y contraseña (y tipo de cuenta opcional)
- */
-export async function login(correo, contrasena, tipoCuenta) {
-  const payload = { correo, contrasena };
-  if (tipoCuenta) {
-    payload.tipoCuenta = tipoCuenta;
-  }
-
-  try {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Error al iniciar sesión.');
-    }
-
-    setSession(data.token, data.user);
-    return data;
-  } catch (error) {
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw new Error('No se pudo conectar con el servidor de VinCloud. Verifica que el backend esté activo.');
-    }
-    throw error;
-  }
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
 }
 
 /**
- * Registrar un nuevo usuario (con tipo de cuenta / rol opcional)
+ * Llamada a la API. Lanza Error con el mensaje del backend; `status` queda
+ * indefinido cuando el servidor no respondió (error de red).
  */
-export async function register(nombre, correo, contrasena, tipoCuenta) {
-  const payload = { nombre, correo, contrasena };
-  if (tipoCuenta) {
-    payload.tipoCuenta = tipoCuenta;
+export async function request(path, { method = 'GET', body, token = getToken(), isFormData = false } = {}) {
+  let response;
+  const headers = {};
+
+  if (body && !isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
 
   try {
-    const response = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
+    response = await fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      body: isFormData ? body : body && JSON.stringify(body),
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Error al registrar la cuenta.');
-    }
-
-    setSession(data.token, data.user);
-    return data;
-  } catch (error) {
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw new Error('No se pudo conectar con el servidor de VinCloud. Verifica que el backend esté activo.');
-    }
-    throw error;
+  } catch {
+    throw new Error('No se pudo conectar con el servidor. Intenta de nuevo más tarde.');
   }
-}
 
-/**
- * Obtener perfil del usuario con token
- */
-export async function getProfile() {
-  const token = getToken();
-  if (!token) return null;
-
-  const response = await fetch(`${API_URL}/auth/me`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    clearSession();
-    return null;
+    const error = new Error(data.error || 'Ocurrió un error inesperado.');
+    error.status = response.status;
+    throw error;
   }
+  return data;
+}
 
-  const data = await response.json();
-  if (data.user) {
-    localStorage.setItem('vincloud_user', JSON.stringify(data.user));
-  }
+function saveSession({ token, user }) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export async function login(correo, contrasena) {
+  const data = await request('/auth/login', { method: 'POST', body: { correo, contrasena }, token: null });
+  saveSession(data);
+  return data.user;
+}
+
+export async function register(nombre, correo, contrasena) {
+  const data = await request('/auth/register', { method: 'POST', body: { nombre, correo, contrasena }, token: null });
+  saveSession(data);
   return data.user;
 }
 
 /**
- * Solicitar enlace de recuperación de contraseña (¿Olvidaste tu contraseña?)
- */
-export async function forgotPassword(correo) {
-  try {
-    const response = await fetch(`${API_URL}/auth/forgot-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ correo }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Error al solicitar recuperación de contraseña.');
-    }
-    return data;
-  } catch (error) {
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw new Error('No se pudo conectar con el servidor de VinCloud. Verifica que el backend esté activo.');
-    }
-    throw error;
-  }
-}
-
-/**
- * Restablecer contraseña utilizando el token recibido
- */
-export async function resetPassword(token, nuevaContrasena) {
-  try {
-    const response = await fetch(`${API_URL}/auth/reset-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ token, nuevaContrasena }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Error al restablecer contraseña.');
-    }
-    return data;
-  } catch (error) {
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw new Error('No se pudo conectar con el servidor de VinCloud. Verifica que el backend esté activo.');
-    }
-    throw error;
-  }
-}
-
-/**
- * Reenviar correo de verificación de cuenta
- */
-export async function resendVerification(correo) {
-  try {
-    const response = await fetch(`${API_URL}/auth/resend-verification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ correo }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Error al reenviar correo de verificación.');
-    }
-    return data;
-  } catch (error) {
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw new Error('No se pudo conectar con el servidor de VinCloud. Verifica que el backend esté activo.');
-    }
-    throw error;
-  }
-}
-
-/**
- * Guardar datos de sesión localmente
+ * Usuario guardado localmente (puede estar desactualizado).
  */
 function getCurrentUser() {
   try {
@@ -189,7 +73,7 @@ function getCurrentUser() {
  * cierra la sesión; si el servidor no responde conserva el usuario guardado.
  */
 export async function getProfile() {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = getToken();
   if (!token) return null;
 
   try {
@@ -214,25 +98,24 @@ export function clearSession() {
  * Solicitar enlace de recuperación de contraseña. Devuelve { message }.
  */
 export function forgotPassword(correo) {
-  return request('/auth/forgot-password', { method: 'POST', body: { correo } });
+  return request('/auth/forgot-password', { method: 'POST', body: { correo }, token: null });
 }
 
 /**
  * Restablecer la contraseña con el token del correo. Devuelve { message }.
  */
 export function resetPassword(token, nuevaContrasena) {
-  return request('/auth/reset-password', { method: 'POST', body: { token, nuevaContrasena } });
+  return request('/auth/reset-password', { method: 'POST', body: { token, nuevaContrasena }, token: null });
 }
 
 /**
  * Verificar el correo con el token del enlace. Devuelve { message, user }.
  */
 export async function verifyEmail(token) {
-  const data = await request('/auth/verify-email', { method: 'POST', body: { token } });
+  const data = await request('/auth/verify-email', { method: 'POST', body: { token }, token: null });
 
-  // Si es el usuario con sesión abierta en este navegador, reflejarlo en lo guardado
   const currentUser = getCurrentUser();
-  if (currentUser && currentUser.id === data.user.id) {
+  if (currentUser && data.user && currentUser.id === data.user.id) {
     localStorage.setItem(USER_KEY, JSON.stringify({ ...currentUser, correoVerificado: true }));
   }
 

@@ -72,6 +72,8 @@ CREATE TABLE IF NOT EXISTS archivo (
     tamano BIGINT NOT NULL,
     tipo VARCHAR(100) NOT NULL,
     fecha_subida DATE NOT NULL DEFAULT CURRENT_DATE,
+    en_papelera BOOLEAN NOT NULL DEFAULT FALSE,
+    fecha_eliminacion DATE,
 
     CONSTRAINT pk_archivo
         PRIMARY KEY (id),
@@ -84,16 +86,20 @@ CREATE TABLE IF NOT EXISTS archivo (
     CONSTRAINT fk_archivo_carpeta
         FOREIGN KEY (carpeta_id)
         REFERENCES carpeta(id)
-        ON DELETE SET NULL,
+        ON DELETE CASCADE,
 
     CONSTRAINT chk_archivo_tamano
         CHECK (tamano >= 0)
 );
 
+ALTER TABLE archivo ADD COLUMN IF NOT EXISTS en_papelera BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE archivo ADD COLUMN IF NOT EXISTS fecha_eliminacion DATE;
+
 CREATE INDEX IF NOT EXISTS idx_carpeta_usuario_id ON carpeta(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_carpeta_padre_id ON carpeta(carpeta_padre_id);
 CREATE INDEX IF NOT EXISTS idx_archivo_usuario_id ON archivo(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_archivo_carpeta_id ON archivo(carpeta_id);
+CREATE INDEX IF NOT EXISTS idx_archivo_papelera ON archivo(usuario_id, en_papelera);
 
 -- ============================================================================
 -- MÓDULO DE PLANES, SUSCRIPCIONES Y PAGOS
