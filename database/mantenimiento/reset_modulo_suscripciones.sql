@@ -22,8 +22,8 @@ DROP TABLE IF EXISTS pago;
 DROP TABLE IF EXISTS suscripcion;
 DROP TABLE IF EXISTS plan;
 
--- Quien no tiene suscripción vuelve a la capacidad gratuita (5 GB)
+-- Quien no tiene suscripción vuelve a la capacidad gratuita por defecto (5 GB)
 UPDATE usuario
-SET espacio_disponible = GREATEST(5368709120 - espacio_consumido, 0);
+SET espacio_disponible = 5368709120;
 
 COMMIT;

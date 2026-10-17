@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Administración - Pruebas VinCloud</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: #F5F4F4;
+      color: #1E293B;
+      padding: 28px 16px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: #FFFFFF;
+      max-width: 960px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 20px rgba(59, 10, 31, 0.08);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #3B0A1F 0%, #7D1535 100%);
+      color: #FFFFFF;
+      padding: 22px 24px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 21px;
+      font-weight: 800;
+    }
+
+    .header p {
+      font-size: 13px;
+      opacity: 0.9;
+      margin-top: 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 99px;
+      margin-top: 8px;
+      text-transform: uppercase;
+    }
+
+    .content {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #3B0A1F;
+      margin-bottom: 4px;
+    }
+
+    .section-desc {
+      font-size: 12.5px;
+      color: #64748B;
+      margin-bottom: 14px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .metric-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-left: 4px solid #7D1535;
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .metric-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #64748B;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      font-size: 20px;
+      font-weight: 800;
+      color: #3B0A1F;
+      margin-top: 4px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #3B0A1F;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 13px;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      background: #FFFFFF;
+      color: #1E293B;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: #7D1535;
+    }
+
+    .btn {
+      background-color: #7D1535;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 14px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background-color: #5D0F27;
+    }
+
+    .btn-secondary {
+      background-color: #3B0A1F;
+    }
+
+    .btn-outline {
+      background-color: #FFFFFF;
+      color: #7D1535;
+      border: 1px solid #7D1535;
+    }
+
+    .btn-danger {
+      background-color: #FEE2E2;
+      color: #991B1B;
+      border: 1px solid #FECACA;
+    }
+
+    .btn-sm {
+      padding: 5px 9px;
+      font-size: 11.5px;
+    }
+
+    .table-wrapper {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin-top: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+
+    th {
+      background: #F1F5F9;
+      color: #475569;
+      text-align: left;
+      padding: 9px 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      border-bottom: 1px solid #E2E8F0;
+    }
+
+    td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #F1F5F9;
+      vertical-align: middle;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .pill-admin { background: #FDF2F4; color: #7D1535; }
+    .pill-user { background: #EFF6FF; color: #1D4ED8; }
+    .pill-active { background: #DCFCE7; color: #166534; }
+    .pill-inactive { background: #FEE2E2; color: #991B1B; }
+
+    .feedback {
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      display: none;
+    }
+    .feedback.success { display: block; background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
+    .feedback.error { display: block; background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>VinCloud - Panel de Administración</h1>
+      <p>Gestión de Cuentas, Consumo, Catálogo de Planes y Reportes Generales</p>
+      <div class="badge">Prueba Temporal de Rol Administrador</div>
+    </div>
+
+    <div class="content">
+      <div id="feedbackBox" class="feedback"></div>
+
+      <!-- 1. Autenticación de Administrador -->
+      <div class="section">
+        <div class="section-title">1. Sesión de Administrador</div>
+        <div class="section-desc">Inicia sesión con una cuenta de rol <strong>Administrador</strong> para consultar <code>/api/admin</code>.</div>
+        <form id="loginForm" class="grid-2">
+          <div class="form-group">
+            <label for="adminEmail">Correo de Administrador</label>
+            <input type="email" id="adminEmail" placeholder="admin@vincloud.com" required>
+          </div>
+          <div class="form-group">
+            <label for="adminPass">Contraseña</label>
+            <input type="password" id="adminPass" placeholder="Contraseña" required>
+          </div>
+          <div style="grid-column: 1 / -1; display: flex; gap: 8px;">
+            <button type="submit" class="btn btn-secondary">Iniciar Sesión como Administrador</button>
+            <button type="button" class="btn btn-outline" id="btnReloadAll">Recargar Todo el Panel</button>
+          </div>
+        </form>
+        <div class="form-group" style="margin-top: 10px; margin-bottom: 0;">
+          <label for="jwtToken">Token JWT de Administrador</label>
+          <input type="text" id="jwtToken" placeholder="Bearer token...">
+        </div>
+      </div>
+
+      <!-- 2. Reporte General del Servicio (Clase Reporte UML) -->
+      <div class="section">
+        <div class="section-title">2. Reporte General del Servicio (<code>GET /api/admin/reports</code>)</div>
+        <div class="section-desc">Supervisión del consumo total de infraestructura, usuarios activos e ingresos simulados.</div>
+        <div class="grid-4">
+          <div class="metric-card">
+            <div class="metric-label">Usuarios Activos</div>
+            <div class="metric-value" id="repUsuarios">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Espacio Total Consumido</div>
+            <div class="metric-value" id="repConsumido">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Ingresos Simulados</div>
+            <div class="metric-value" id="repIngresos">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Archivos / Carpetas</div>
+            <div class="metric-value" id="repRecursos">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Administrar Catálogo de Planes -->
+      <div class="section">
+        <div class="section-title">3. Catálogo de Planes de Almacenamiento (<code>/api/admin/plans</code>)</div>
+        <div class="section-desc">Crea nuevos planes o activa/desactiva los existentes en el catálogo.</div>
+
+        <form id="planForm" class="grid-2">
+          <div class="form-group">
+            <label for="planNombre">Nombre del Plan</label>
+            <input type="text" id="planNombre" placeholder="Ej. Corporativo Plus" required>
+          </div>
+          <div class="form-group">
+            <label for="planDesc">Descripción</label>
+            <input type="text" id="planDesc" placeholder="Descripción breve">
+          </div>
+          <div class="form-group">
+            <label for="planPrecio">Precio (Q)</label>
+            <input type="number" step="0.01" min="0" id="planPrecio" placeholder="95.00" required>
+          </div>
+          <div class="form-group">
+            <label for="planGb">Capacidad (en GB) y Vigencia (días)</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="number" min="1" id="planGb" placeholder="GB (ej. 500)" required>
+              <input type="number" min="1" id="planVigencia" value="30" placeholder="Días" required>
+            </div>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <button type="submit" class="btn">Crear Nuevo Plan</button>
+          </div>
+        </form>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Plan</th>
+                <th>Precio</th>
+                <th>Capacidad</th>
+                <th>Vigencia</th>
+                <th>Suscritos</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="plansTableBody">
+              <tr><td colspan="8">Inicia sesión como Administrador para cargar los planes.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 4. Visualizar Planes de Usuarios (Diagrama de Actividad UML) -->
+      <div class="section">
+        <div class="section-title">4. Planes de Usuarios y Gestión de Cuentas (<code>/api/admin/user-plans</code> y <code>/api/admin/users</code>)</div>
+        <div class="section-desc">Supervisa el plan contratado, consumo de almacenamiento y administra cuentas de clientes.</div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th>Plan Actual</th>
+                <th>Consumo / Cuota</th>
+                <th>Verificado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="7">Inicia sesión como Administrador para listar los usuarios.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:5000/api';
+    const tokenInput = document.getElementById('jwtToken');
+
+    function showFeedback(type, msg) {
+      const box = document.getElementById('feedbackBox');
+      box.className = `feedback ${type}`;
+      box.textContent = msg;
+    }
+
+    function formatBytes(bytes = 0) {
+      const num = Number(bytes) || 0;
+      if (num === 0) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(num) / Math.log(1024));
+      return `${(num / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
+    }
+
+    function authHeaders() {
+      return {
+        'Authorization': `Bearer ${tokenInput.value.trim()}`,
+        'Content-Type': 'application/json'
+      };
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            correo: document.getElementById('adminEmail').value.trim(),
+            contrasena: document.getElementById('adminPass').value,
+            tipoCuenta: 'administrador'
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error de autenticación');
+        tokenInput.value = data.token;
+        showFeedback('success', `Sesión administrativa iniciada: ${data.user.nombre} (${data.user.rol})`);
+        await loadAllAdminData();
+      } catch (err) {
+        showFeedback('error', err.message);
+      }
+    });
+
+    document.getElementById('btnReloadAll').addEventListener('click', loadAllAdminData);
+
+    async function loadAllAdminData() {
+      if (!tokenInput.value.trim()) {
+        return showFeedback('error', 'Ingresa un token o inicia sesión como Administrador.');
+      }
+      await Promise.all([loadReport(), loadPlans(), loadUsers()]);
+    }
+
+    async function loadReport() {
+      const res = await fetch(`${API_BASE}/admin/reports`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al cargar reporte');
+      const r = data.report;
+      document.getElementById('repUsuarios').textContent = `${r.usuariosActivos} (${r.usuariosVerificados} verif.)`;
+      document.getElementById('repConsumido').textContent = `${formatBytes(r.espacioTotalConsumido)} / ${formatBytes(r.espacioTotalDisponible)}`;
+      document.getElementById('repIngresos').textContent = `Q ${Number(r.ingresosSimulados).toFixed(2)}`;
+      document.getElementById('repRecursos').textContent = `${r.totalArchivos} arch. / ${r.totalCarpetas} carp.`;
+    }
+
+    async function loadPlans() {
+      const res = await fetch(`${API_BASE}/admin/plans`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al cargar planes');
+      const tbody = document.getElementById('plansTableBody');
+      tbody.innerHTML = '';
+      data.plans.forEach((p) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${p.id}</td>
+          <td><strong>${p.nombre}</strong><br><small>${p.descripcion || ''}</small></td>
+          <td>Q ${Number(p.precio).toFixed(2)}</td>
+          <td>${formatBytes(p.capacidadAlmacenamiento)}</td>
+          <td>${p.vigenciaDias} días</td>
+          <td>${p.suscripcionesActivas ?? 0}</td>
+          <td><span class="pill ${p.activo ? 'pill-active' : 'pill-inactive'}">${p.activo ? 'ACTIVO' : 'INACTIVO'}</span></td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="togglePlan(${p.id}, ${!p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
+            <button class="btn btn-outline btn-sm" onclick="editPlanPrice(${p.id}, ${p.precio})">Precio</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function loadUsers() {
+      const res = await fetch(`${API_BASE}/admin/users`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al cargar usuarios');
+      const tbody = document.getElementById('usersTableBody');
+      tbody.innerHTML = '';
+      data.users.forEach((u) => {
+        const planText = u.suscripcionActiva ? `${u.suscripcionActiva.planNombre} (${u.suscripcionActiva.diasRestantes}d)` : 'Gratuito (5 GB)';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${u.id}</td>
+          <td><strong>${u.nombre}</strong><br><small>${u.correo}</small></td>
+          <td><span class="pill ${u.rol === 'Administrador' ? 'pill-admin' : 'pill-user'}">${u.rol}</span></td>
+          <td>${planText}</td>
+          <td>${formatBytes(u.espacioConsumido)} / ${formatBytes(u.espacioDisponible)}</td>
+          <td>${u.correoVerificado ? '✅ Sí' : '❌ No'}</td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="changeUserQuota(${u.id})">Cuota</button>
+            <button class="btn btn-outline btn-sm" onclick="toggleUserRole(${u.id}, '${u.rol}')">Rol</button>
+            <button class="btn btn-danger btn-sm" onclick="removeUser(${u.id})">Eliminar</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('planForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await fetch(`${API_BASE}/admin/plans`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            nombre: document.getElementById('planNombre').value.trim(),
+            descripcion: document.getElementById('planDesc').value.trim(),
+            precio: Number(document.getElementById('planPrecio').value),
+            capacidadGb: Number(document.getElementById('planGb').value),
+            vigenciaDias: Number(document.getElementById('planVigencia').value)
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'No se pudo crear el plan');
+        e.target.reset();
+        showFeedback('success', data.message);
+        await loadAllAdminData();
+      } catch (err) {
+        showFeedback('error', err.message);
+      }
+    });
+
+    window.togglePlan = async (id, activo) => {
+      const res = await fetch(`${API_BASE}/admin/plans/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ activo })
+      });
+      const data = await res.json();
+      if (!res.ok) return showFeedback('error', data.error);
+      showFeedback('success', data.message);
+      await loadPlans();
+    };
+
+    window.editPlanPrice = async (id, currentPrice) => {
+      const val = prompt('Nuevo precio en Quetzales (Q):', currentPrice);
+      if (val === null) return;
+      const res = await fetch(`${API_BASE}/admin/plans/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ precio: Number(val) })
+      });
+      const data = await res.json();
+      if (!res.ok) return showFeedback('error', data.error);
+      showFeedback('success', data.message);
+      await loadPlans();
+    };
+
+    window.changeUserQuota = async (id) => {
+      const gb = prompt('Nueva cuota de espacio disponible en GB (ej. 10, 50, 200):', '10');
+      if (gb === null) return;
+      const res = await fetch(`${API_BASE}/admin/users/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ cuotaGb: Number(gb) })
+      });
+      const data = await res.json();
+      if (!res.ok) return showFeedback('error', data.error);
+      showFeedback('success', data.message);
+      await loadAllAdminData();
+    };
+
+    window.toggleUserRole = async (id, currentRol) => {
+      const nuevoRol = currentRol === 'Administrador' ? 'Usuario' : 'Administrador';
+      if (!confirm(`¿Cambiar el rol del usuario #${id} a ${nuevoRol}?`)) return;
+      const res = await fetch(`${API_BASE}/admin/users/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ rol: nuevoRol })
+      });
+      const data = await res.json();
+      if (!res.ok) return showFeedback('error', data.error);
+      showFeedback('success', data.message);
+      await loadUsers();
+    };
+
+    window.removeUser = async (id) => {
+      if (!confirm(`¿Eliminar permanentemente la cuenta del usuario #${id} y todos sus archivos?`)) return;
+      const res = await fetch(`${API_BASE}/admin/users/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok) return showFeedback('error', data.error);
+      showFeedback('success', data.message);
+      await loadAllAdminData();
+    };
+  </script>
+</body>
+</html>

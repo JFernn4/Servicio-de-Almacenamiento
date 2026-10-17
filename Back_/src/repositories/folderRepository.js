@@ -41,7 +41,6 @@ export async function findFolderByIdAndUser(id, usuarioId) {
  * Lista las carpetas contenidas en un nivel dado (raíz o subcarpeta) junto con el conteo de elementos contenidos.
  */
 export async function findFoldersByUser(usuarioId, carpetaPadreId = null) {
-  await query('ALTER TABLE archivo ADD COLUMN IF NOT EXISTS en_papelera BOOLEAN NOT NULL DEFAULT FALSE');
   const { rows } = await query(
     `SELECT
        c.id,

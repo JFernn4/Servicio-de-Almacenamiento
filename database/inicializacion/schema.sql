@@ -39,6 +39,69 @@ CREATE TABLE IF NOT EXISTS usuario (
 );
 
 -- ============================================================================
+-- MÓDULO DE ALMACENAMIENTO DE INFORMACIÓN (CARPETAS Y ARCHIVOS)
+-- Según diagramas: modeloRelacional.png, entidadRelacion.png y Diagrama de Clases
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS carpeta (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    usuario_id INTEGER NOT NULL,
+    carpeta_padre_id INTEGER,
+    nombre VARCHAR(255) NOT NULL,
+    fecha_creacion DATE NOT NULL DEFAULT CURRENT_DATE,
+
+    CONSTRAINT pk_carpeta
+        PRIMARY KEY (id),
+
+    CONSTRAINT fk_carpeta_usuario
+        FOREIGN KEY (usuario_id)
+        REFERENCES usuario(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_carpeta_padre
+        FOREIGN KEY (carpeta_padre_id)
+        REFERENCES carpeta(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS archivo (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    usuario_id INTEGER NOT NULL,
+    carpeta_id INTEGER,
+    nombre VARCHAR(255) NOT NULL,
+    tamano BIGINT NOT NULL,
+    tipo VARCHAR(100) NOT NULL,
+    fecha_subida DATE NOT NULL DEFAULT CURRENT_DATE,
+    en_papelera BOOLEAN NOT NULL DEFAULT FALSE,
+    fecha_eliminacion DATE,
+
+    CONSTRAINT pk_archivo
+        PRIMARY KEY (id),
+
+    CONSTRAINT fk_archivo_usuario
+        FOREIGN KEY (usuario_id)
+        REFERENCES usuario(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_archivo_carpeta
+        FOREIGN KEY (carpeta_id)
+        REFERENCES carpeta(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT chk_archivo_tamano
+        CHECK (tamano >= 0)
+);
+
+ALTER TABLE archivo ADD COLUMN IF NOT EXISTS en_papelera BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE archivo ADD COLUMN IF NOT EXISTS fecha_eliminacion DATE;
+
+CREATE INDEX IF NOT EXISTS idx_carpeta_usuario_id ON carpeta(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_carpeta_padre_id ON carpeta(carpeta_padre_id);
+CREATE INDEX IF NOT EXISTS idx_archivo_usuario_id ON archivo(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_archivo_carpeta_id ON archivo(carpeta_id);
+CREATE INDEX IF NOT EXISTS idx_archivo_papelera ON archivo(usuario_id, en_papelera);
+
+-- ============================================================================
 -- MÓDULO DE PLANES, SUSCRIPCIONES Y PAGOS (Avance 2 - 50%)
 -- Según diagramas: modeloRelacional.png y entidadRelacion.png
 -- ============================================================================
@@ -158,6 +221,11 @@ CREATE TABLE IF NOT EXISTS pago (
     CONSTRAINT chk_pago_tarjeta_ultimos4
         CHECK (tarjeta_ultimos4 ~ '^[0-9]{4}$')
 );
+
+ALTER TABLE plan ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS tipo VARCHAR(20) NOT NULL DEFAULT 'contratacion';
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS referencia VARCHAR(50);
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS tarjeta_ultimos4 CHAR(4);
 
 CREATE INDEX IF NOT EXISTS idx_suscripcion_usuario_id ON suscripcion(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_suscripcion_plan_id ON suscripcion(plan_id);
