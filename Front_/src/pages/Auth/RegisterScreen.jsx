@@ -43,7 +43,7 @@ function RegisterScreen({ onRegister, onGoToLogin }) {
       eyebrow="Crea tu espacio"
       title="Empieza con VinCloud"
       subtitle="Tu espacio seguro en la nube está a unos pocos pasos."
-      maxWidth={520}
+      maxWidth={600}
       legalText="Al crear una cuenta"
       footer={<>¿Ya tienes una cuenta? <TextButton onClick={onGoToLogin}>Iniciar sesión</TextButton></>}
     >

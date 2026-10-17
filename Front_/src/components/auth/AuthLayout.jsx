@@ -7,7 +7,7 @@ import { colors } from '../../styles/theme';
  * tarjeta con logo, encabezado, contenido (formulario) y pie.
  * `eyebrow`, `footer` y `legalText` son opcionales.
  */
-function AuthLayout({ eyebrow, title, subtitle, maxWidth = 460, footer, legalText, children }) {
+function AuthLayout({ eyebrow, title, subtitle, maxWidth = 540, footer, legalText, children }) {
   return (
     <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', padding: 20 }}>
       <AuthBackground />
