@@ -13,3 +13,21 @@ pool.on('error', (err) => {
 });
 
 export const query = (text, params) => pool.query(text, params);
+
+/**
+ * Ejecuta un bloque de operaciones SQL dentro de una transacción ACID (BEGIN / COMMIT / ROLLBACK).
+ */
+export async function withTransaction(callback) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}

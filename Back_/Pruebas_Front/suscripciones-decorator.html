@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Módulo de Suscripciones (Patrón Decorator + Multer Dinámico) - VinCloud</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: #F5F4F4;
+      color: #1E293B;
+      padding: 28px 16px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: #FFFFFF;
+      max-width: 980px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 20px rgba(59, 10, 31, 0.08);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #3B0A1F 0%, #7D1535 100%);
+      color: #FFFFFF;
+      padding: 22px 24px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 21px;
+      font-weight: 800;
+    }
+
+    .header p {
+      font-size: 13px;
+      opacity: 0.9;
+      margin-top: 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 99px;
+      margin-top: 8px;
+      text-transform: uppercase;
+    }
+
+    .content {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #3B0A1F;
+      margin-bottom: 4px;
+    }
+
+    .section-desc {
+      font-size: 12.5px;
+      color: #64748B;
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+    }
+
+    @media (max-width: 680px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .metric-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-left: 4px solid #7D1535;
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748B;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      font-size: 17px;
+      font-weight: 800;
+      color: #3B0A1F;
+      margin-top: 4px;
+      word-break: break-word;
+    }
+
+    .metric-sub {
+      font-size: 11.5px;
+      color: #64748B;
+      margin-top: 3px;
+    }
+
+    .plan-card {
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .plan-card.active {
+      border: 2px solid #7D1535;
+      background: #FDF2F4;
+    }
+
+    .plan-name {
+      font-size: 16px;
+      font-weight: 800;
+      color: #3B0A1F;
+    }
+
+    .plan-price {
+      font-size: 22px;
+      font-weight: 800;
+      color: #7D1535;
+    }
+
+    .plan-list {
+      list-style: none;
+      font-size: 12px;
+      color: #334155;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .plan-list li::before {
+      content: "• ";
+      color: #7D1535;
+      font-weight: bold;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #3B0A1F;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="file"],
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 13px;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      background: #FFFFFF;
+      color: #1E293B;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: #7D1535;
+    }
+
+    .btn {
+      background-color: #7D1535;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 14px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+
+    .btn:hover {
+      background-color: #5D0F27;
+    }
+
+    .btn:disabled {
+      background-color: #94A3B8;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background-color: #3B0A1F;
+    }
+
+    .btn-outline {
+      background-color: #FFFFFF;
+      color: #7D1535;
+      border: 1px solid #7D1535;
+    }
+
+    .btn-outline:hover {
+      background-color: #FDF2F4;
+    }
+
+    .btn-danger {
+      background-color: #FEE2E2;
+      color: #991B1B;
+      border: 1px solid #FCA5A5;
+    }
+
+    .btn-danger:hover {
+      background-color: #FECACA;
+    }
+
+    .actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .status-box {
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      display: none;
+    }
+
+    .status-box.success {
+      display: block;
+      background: #ECFDF5;
+      border: 1px solid #6EE7B7;
+      color: #065F46;
+    }
+
+    .status-box.error {
+      display: block;
+      background: #FEF2F2;
+      border: 1px solid #FCA5A5;
+      color: #991B1B;
+    }
+
+    .status-box.info {
+      display: block;
+      background: #FDF2F4;
+      border: 1px solid #FBCFE8;
+      color: #3B0A1F;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    th {
+      background: #3B0A1F;
+      color: #FFFFFF;
+      text-align: left;
+      padding: 9px 10px;
+      font-size: 11.5px;
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 9px 10px;
+      border-bottom: 1px solid #E2E8F0;
+      color: #334155;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .pill-active, .pill-aprobado {
+      background: #D1FAE5;
+      color: #065F46;
+    }
+
+    .pill-cancelada, .pill-rechazado {
+      background: #FEE2E2;
+      color: #991B1B;
+    }
+
+    .pill-gratuito {
+      background: #E2E8F0;
+      color: #334155;
+    }
+
+    .code-box {
+      background: #1E293B;
+      color: #F8FAFC;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>VinCloud — Módulo de Suscripciones (Patrón Decorator + Multer Dinámico)</h1>
+      <p>Prueba integral de clases Plan, PlanGratuito, DecoradorPlanes (PlanBasico, Profesional, Empresarial) y políticas de subida con Multer</p>
+      <span class="badge">Entorno de Pruebas Temporales · Pruebas_Front</span>
+    </div>
+
+    <div class="content">
+      <div id="globalAlert" class="status-box"></div>
+
+      <!-- 1. SESIÓN DE USUARIO -->
+      <div class="section">
+        <div class="section-title">1. Autenticación del Cliente</div>
+        <div class="section-desc">
+          Inicia sesión o registra un usuario de prueba para gestionar su suscripción y probar los límites dinámicos de Multer.
+        </div>
+        <div class="grid-2">
+          <div>
+            <div class="form-group">
+              <label for="authNombre">Nombre (solo para registro rápido)</label>
+              <input type="text" id="authNombre" placeholder="Ej. Andrea Morales" value="Cliente Prueba Decorator">
+            </div>
+            <div class="form-group">
+              <label for="authCorreo">Correo electrónico</label>
+              <input type="email" id="authCorreo" placeholder="cliente@vincloud.com" value="decorator.test@vincloud.com">
+            </div>
+            <div class="form-group">
+              <label for="authPassword">Contraseña</label>
+              <input type="password" id="authPassword" placeholder="Mínimo 6 caracteres" value="Clave123">
+            </div>
+            <div class="actions-row">
+              <button type="button" class="btn" onclick="iniciarSesion()">Iniciar Sesión</button>
+              <button type="button" class="btn btn-secondary" onclick="registrarRapido()">Registrar Cuenta de Prueba</button>
+              <button type="button" class="btn btn-outline" onclick="cargarTodo()">Refrescar Estado</button>
+            </div>
+          </div>
+          <div>
+            <div class="metric-card">
+              <div class="metric-label">Sesión Activa</div>
+              <div class="metric-value" id="sessionUser">Sin autenticar</div>
+              <div class="metric-sub" id="sessionEmail">Inicia sesión o regístrate para comenzar</div>
+            </div>
+            <div class="metric-card" style="margin-top: 10px;">
+              <div class="metric-label">Cuota en PostgreSQL (usuario.espacio_disponible)</div>
+              <div class="metric-value" id="userQuotaText">0 B / 0 B</div>
+              <div class="metric-sub" id="userQuotaBytes">Sincronizada con plan.almacenamiento()</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. ESTADO DEL PATRÓN DECORATOR Y POLÍTICA MULTER ACTIVA -->
+      <div class="section">
+        <div class="section-title">2. Estado Actual del Objeto Plan (DiagramaDecorator) y Multer Dinámico</div>
+        <div class="section-desc">
+          El backend construye el objeto <code>Plan</code> envolviendo <code>PlanGratuito</code> con <code>DecoradorPlanes</code> (<code>PlanBasico</code>, <code>Profesional</code> o <code>Empresarial</code>) y configura Multer en cada petición.
+        </div>
+
+        <div class="grid-4" style="margin-bottom: 12px;">
+          <div class="metric-card">
+            <div class="metric-label">Clase Concreta Activa</div>
+            <div class="metric-value" id="decClass">-</div>
+            <div class="metric-sub" id="decChain">Cadena: -</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">+ costo()</div>
+            <div class="metric-value" id="decCost">Q0.00</div>
+            <div class="metric-sub" id="decSubStatus">Estado: Gratuito</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">+ almacenamiento()</div>
+            <div class="metric-value" id="decStorage">5 GB</div>
+            <div class="metric-sub" id="decStorageBytes">5,368,709,120 bytes</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Política Multer Activa</div>
+            <div class="metric-value" id="multerLimitText">Máx 10 MB / 1 arch.</div>
+            <div class="metric-sub" id="multerShareText">Enlace compartido: 24h</div>
+          </div>
+        </div>
+
+        <div class="metric-card" style="margin-bottom: 12px;">
+          <div class="metric-label">+ decripcion()</div>
+          <div class="metric-value" style="font-size: 13.5px; font-weight: 600;" id="decDescription">-</div>
+        </div>
+
+        <div class="actions-row">
+          <button type="button" class="btn btn-secondary" onclick="renovarSuscripcion()">Renovar Suscripción Activa (+30 días)</button>
+          <button type="button" class="btn btn-danger" onclick="cancelarSuscripcion()">Cancelar Suscripción (Volver a PlanGratuito 5 GB)</button>
+        </div>
+      </div>
+
+      <!-- 3. CATÁLOGO DE PLANES Y PASARELA DE PAGO SIMULADA -->
+      <div class="section">
+        <div class="section-title">3. Catálogo de Planes y Contratación / Cambio de Plan</div>
+        <div class="section-desc">
+          Selecciona un plan para envolver <code>PlanGratuito</code> con el decorador correspondiente, registrar la transacción en <code>pago</code> y actualizar tu cuota y límites de Multer.
+        </div>
+
+        <div class="grid-2" style="margin-bottom: 14px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="cardLast4">Número de Tarjeta Simulada (solo se guardan los últimos 4 dígitos)</label>
+            <input type="text" id="cardLast4" value="4532 8910 2234 4242" placeholder="Ej. 4242 (usa 0000 para simular rechazo)">
+          </div>
+          <div class="form-group" style="margin-bottom: 0; justify-content: flex-end;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding-top: 18px;">
+              <input type="checkbox" id="simulateReject" style="width: auto;">
+              Simular rechazo de pasarela de pago (registra pago <code>rechazado</code> y suscripción <code>cancelada</code>)
+            </label>
+          </div>
+        </div>
+
+        <div id="plansGrid" class="grid-3"></div>
+      </div>
+
+      <!-- 4. PRUEBA EN VIVO DE MULTER DINÁMICO -->
+      <div class="section">
+        <div class="section-title">4. Prueba en Vivo de Multer Dinámico según Tipo de Suscripción</div>
+        <div class="section-desc">
+          Comprueba cómo <code>uploadMiddleware.js</code> lee el decorador activo del usuario y ajusta dinámicamente <code>limits.fileSize</code> y <code>limits.files</code> en Multer.
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <label style="display: block; margin-bottom: 6px;">A) Generador rápido de cargas de prueba en memoria (1 clic):</label>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button type="button" class="btn btn-outline" onclick="probarSubidaSintetica(1, 2)">
+                Probar 1 archivo de 2 MB (Pasa en PlanGratuito [máx 10 MB] y superiores)
+              </button>
+              <button type="button" class="btn btn-outline" onclick="probarSubidaSintetica(1, 12)">
+                Probar 1 archivo de 12 MB (Falla en PlanGratuito [10 MB] · Pasa en PlanBasico [50 MB] / Pro / Emp)
+              </button>
+              <button type="button" class="btn btn-outline" onclick="probarSubidaSintetica(1, 55)">
+                Probar 1 archivo de 55 MB (Falla en PlanGratuito y PlanBasico [50 MB] · Pasa en Profesional [250 MB])
+              </button>
+              <button type="button" class="btn btn-outline" onclick="probarSubidaSintetica(2, 1)">
+                Probar subida múltiple: 2 archivos simultáneos (Falla en PlanGratuito [máx 1] · Pasa en PlanBasico [máx 3])
+              </button>
+              <button type="button" class="btn btn-outline" onclick="probarSubidaSintetica(4, 1)">
+                Probar subida múltiple: 4 archivos simultáneos (Falla en PlanBasico [máx 3] · Pasa en Profesional [máx 10])
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label style="display: block; margin-bottom: 6px;">B) Subir archivo(s) reales desde tu equipo:</label>
+            <div class="form-group">
+              <input type="file" id="realFileInput" multiple>
+            </div>
+            <button type="button" class="btn" onclick="subirArchivosReales()">Subir Archivo(s) Seleccionados con Multer</button>
+
+            <div style="margin-top: 14px;">
+              <div class="metric-label" style="margin-bottom: 6px;">Resultado de la última operación en Multer:</div>
+              <div id="multerResultBox" class="code-box">Esperando prueba de subida...</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label>Archivos actuales del usuario (prueba también la vigencia del enlace compartido según el plan):</label>
+            <button type="button" class="btn btn-outline" style="padding: 5px 10px; font-size: 11.5px;" onclick="cargarArchivosUsuario()">Actualizar Lista</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Tamaño</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="userFilesTableBody">
+              <tr><td colspan="5">Inicia sesión para ver tus archivos.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 5. SIMULADOR DE ENCADENAMIENTO RECURSIVO DEL PATRÓN DECORATOR -->
+      <div class="section">
+        <div class="section-title">5. Laboratorio de Composición del DiagramaDecorator (wrappee: Plan)</div>
+        <div class="section-desc">
+          Prueba cómo <code>DecoradorPlanes</code> permite envolver recursivamente un objeto <code>Plan</code> dentro de otro (<code>new Empresarial(new Profesional(new PlanBasico(new PlanGratuito())))</code>).
+        </div>
+        <div class="actions-row" style="margin-bottom: 10px;">
+          <button type="button" class="btn btn-outline" onclick="simularCadena(['PlanBasico'])">
+            PlanGratuito + PlanBasico
+          </button>
+          <button type="button" class="btn btn-outline" onclick="simularCadena(['Profesional'])">
+            PlanGratuito + Profesional
+          </button>
+          <button type="button" class="btn btn-outline" onclick="simularCadena(['Empresarial'])">
+            PlanGratuito + Empresarial
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="simularCadena(['PlanBasico', 'Profesional', 'Empresarial'])">
+            Encadenar Todos: PlanGratuito → PlanBasico → Profesional → Empresarial
+          </button>
+        </div>
+        <div id="decoratorSimBox" class="code-box">Haz clic en cualquiera de las combinaciones superiores para inspeccionar la delegación de wrappee.</div>
+      </div>
+
+      <!-- 6. HISTORIAL DE PAGOS Y SUSCRIPCIONES -->
+      <div class="section">
+        <div class="section-title">6. Historial de Pagos (Vista SQL v_historial_pagos)</div>
+        <div class="section-desc">
+          Registro auditable de contrataciones, cambios de plan, renovaciones y pagos rechazados.
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID Pago</th>
+              <th>Referencia</th>
+              <th>Plan</th>
+              <th>Tipo</th>
+              <th>Monto</th>
+              <th>Tarjeta</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="paymentsTableBody">
+            <tr><td colspan="8">Inicia sesión para consultar tu historial de transacciones.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:5000/api';
+    let token = localStorage.getItem('vincloud_token') || '';
+
+    function showAlert(message, type = 'info') {
+      const box = document.getElementById('globalAlert');
+      box.className = `status-box ${type}`;
+      box.textContent = message;
+    }
+
+    function formatBytes(bytes = 0) {
+      const n = Number(bytes) || 0;
+      if (n === 0) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+      let val = n;
+      let i = 0;
+      while (val >= 1024 && i < units.length - 1) {
+        val /= 1024;
+        i++;
+      }
+      return `${val.toFixed(val >= 10 || i === 0 ? 0 : 2)} ${units[i]}`;
+    }
+
+    async function apiFetch(path, options = {}) {
+      const headers = { ...(options.headers || {}) };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+      }
+
+      const res = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers,
+      });
+      const data = await res.json().catch(() => ({}));
+      return { ok: res.ok, status: res.status, data };
+    }
+
+    async function iniciarSesion() {
+      const correo = document.getElementById('authCorreo').value.trim();
+      const contrasena = document.getElementById('authPassword').value;
+
+      const { ok, data } = await apiFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ correo, contrasena }),
+      });
+
+      if (!ok) {
+        showAlert(data.error || 'Error al iniciar sesión.', 'error');
+        return;
+      }
+
+      token = data.token;
+      localStorage.setItem('vincloud_token', token);
+      showAlert(`Sesión iniciada correctamente como ${data.user.nombre}.`, 'success');
+      await cargarTodo();
+    }
+
+    async function registrarRapido() {
+      const nombre = document.getElementById('authNombre').value.trim() || 'Cliente Decorator';
+      const correo = document.getElementById('authCorreo').value.trim();
+      const contrasena = document.getElementById('authPassword').value;
+
+      const { ok, status, data } = await apiFetch('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ nombre, correo, contrasena, tipoCuenta: 'Usuario' }),
+      });
+
+      if (!ok) {
+        if (status === 409) {
+          showAlert('El correo ya está registrado. Iniciando sesión automáticamente...', 'info');
+          await iniciarSesion();
+          return;
+        }
+        showAlert(data.error || 'Error al registrar cuenta.', 'error');
+        return;
+      }
+
+      token = data.token;
+      localStorage.setItem('vincloud_token', token);
+      showAlert(`Cuenta creada e iniciada como ${data.user.nombre} con PlanGratuito (5 GB).`, 'success');
+      await cargarTodo();
+    }
+
+    async function cargarCatalogoPlanes(planIdActivo = null) {
+      const { ok, data } = await apiFetch('/subscriptions/plans');
+      if (!ok) return;
+
+      const grid = document.getElementById('plansGrid');
+      const items = [data.planBase, ...(data.planes || [])];
+
+      grid.innerHTML = items.map((item) => {
+        const dec = item.decorator;
+        const esGratuito = item.id === null;
+        const esActivo = esGratuito ? !planIdActivo : Number(planIdActivo) === Number(item.id);
+
+        return `
+          <div class="plan-card ${esActivo ? 'active' : ''}">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span class="plan-name">${item.nombre} (${dec.clase})</span>
+                ${esActivo ? '<span class="pill pill-active">ACTIVO</span>' : ''}
+              </div>
+              <div class="plan-price">Q${Number(dec.costo).toFixed(2)} <span style="font-size:12px; font-weight:500; color:#64748B;">${item.vigenciaDias ? `/ ${item.vigenciaDias} días` : '/ siempre gratis'}</span></div>
+              <div style="font-size:12px; font-weight:700; color:#3B0A1F; margin: 8px 0;">
+                almacenamiento(): ${formatBytes(dec.almacenamiento)}
+              </div>
+              <ul class="plan-list">
+                ${(dec.politicaMulter.features || []).map((f) => `<li>${f}</li>`).join('')}
+              </ul>
+            </div>
+            <div>
+              ${
+                esGratuito
+                  ? `<button class="btn btn-outline" style="width:100%;" disabled>Componente Base (PlanGratuito)</button>`
+                  : `<button class="btn" style="width:100%;" ${esActivo ? 'disabled' : ''} onclick="contratarPlan(${item.id}, '${item.nombre}')">
+                      ${esActivo ? 'Plan Actualmente Activo' : `Aplicar Decorador ${dec.clase}`}
+                     </button>`
+              }
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function cargarEstadoSuscripcion() {
+      if (!token) {
+        await cargarCatalogoPlanes(null);
+        return;
+      }
+
+      const [meAuth, meSub] = await Promise.all([
+        apiFetch('/auth/me'),
+        apiFetch('/subscriptions/me'),
+      ]);
+
+      if (!meAuth.ok) {
+        document.getElementById('sessionUser').textContent = 'Sesión expirada o inválida';
+        await cargarCatalogoPlanes(null);
+        return;
+      }
+
+      const user = meAuth.data.user;
+      document.getElementById('sessionUser').textContent = `${user.nombre} (${user.rol})`;
+      document.getElementById('sessionEmail').textContent = user.correo;
+
+      if (meSub.ok) {
+        const { suscripcionActiva, planDecorado, almacenamientoUsuario } = meSub.data;
+        const usado = almacenamientoUsuario.espacioConsumido;
+        const disp = almacenamientoUsuario.espacioDisponible;
+
+        document.getElementById('userQuotaText').textContent = `${formatBytes(usado)} usados de ${formatBytes(disp)}`;
+        document.getElementById('userQuotaBytes').textContent = `${usado.toLocaleString()} / ${disp.toLocaleString()} bytes`;
+
+        document.getElementById('decClass').textContent = planDecorado.clase;
+        document.getElementById('decChain').textContent = `Cadena: ${planDecorado.cadenaDecoradores.join(' → ')}`;
+        document.getElementById('decCost').textContent = `Q${Number(planDecorado.costo).toFixed(2)}`;
+        document.getElementById('decSubStatus').textContent = suscripcionActiva
+          ? `Activa · Vence: ${String(suscripcionActiva.fechaRenovacion).slice(0, 10)} (${suscripcionActiva.diasRestantes} días)`
+          : 'Sin suscripción de pago (Base)';
+        document.getElementById('decStorage').textContent = formatBytes(planDecorado.almacenamiento);
+        document.getElementById('decStorageBytes').textContent = `${Number(planDecorado.almacenamiento).toLocaleString()} bytes`;
+        document.getElementById('decDescription').textContent = planDecorado.decripcion;
+
+        const pol = planDecorado.politicaMulter;
+        document.getElementById('multerLimitText').textContent = `Máx ${pol.maxFileSizeMb} MB / ${pol.maxFiles} arch.`;
+        document.getElementById('multerShareText').textContent = `Vigencia enlaces compartidos: ${pol.shareExpiresIn}`;
+
+        await cargarCatalogoPlanes(suscripcionActiva?.planId ?? null);
+      }
+    }
+
+    async function contratarPlan(planId, nombrePlan) {
+      if (!token) {
+        showAlert('Primero inicia sesión o registra una cuenta de prueba en la sección 1.', 'error');
+        return;
+      }
+
+      const tarjeta = document.getElementById('cardLast4').value;
+      const simularRechazo = document.getElementById('simulateReject').checked;
+
+      const { ok, status, data } = await apiFetch('/subscriptions/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({ planId, tarjeta, simularRechazo }),
+      });
+
+      if (status === 402) {
+        showAlert(data.message || 'Pago rechazado por la pasarela simulada.', 'error');
+        await cargarTodo();
+        return;
+      }
+
+      if (!ok) {
+        showAlert(data.error || 'No se pudo contratar el plan.', 'error');
+        return;
+      }
+
+      showAlert(`${data.message} Nuevo plan decorado: ${data.planDecorado.clase} (${formatBytes(data.planDecorado.almacenamiento)}).`, 'success');
+      await cargarTodo();
+    }
+
+    async function renovarSuscripcion() {
+      if (!token) {
+        showAlert('Inicia sesión primero.', 'error');
+        return;
+      }
+
+      const tarjeta = document.getElementById('cardLast4').value;
+      const simularRechazo = document.getElementById('simulateReject').checked;
+
+      const { ok, status, data } = await apiFetch('/subscriptions/renew', {
+        method: 'POST',
+        body: JSON.stringify({ tarjeta, simularRechazo }),
+      });
+
+      if (status === 402) {
+        showAlert(data.message, 'error');
+        await cargarTodo();
+        return;
+      }
+
+      if (!ok) {
+        showAlert(data.error || 'No se pudo renovar la suscripción.', 'error');
+        return;
+      }
+
+      showAlert(data.message, 'success');
+      await cargarTodo();
+    }
+
+    async function cancelarSuscripcion() {
+      if (!token) {
+        showAlert('Inicia sesión primero.', 'error');
+        return;
+      }
+
+      const { ok, data } = await apiFetch('/subscriptions/cancel', {
+        method: 'POST',
+      });
+
+      if (!ok) {
+        showAlert(data.error || 'No se pudo cancelar la suscripción.', 'error');
+        return;
+      }
+
+      showAlert(data.message, 'info');
+      await cargarTodo();
+    }
+
+    async function probarSubidaSintetica(cantidadArchivos, tamanoMbPorArchivo) {
+      if (!token) {
+        showAlert('Inicia sesión primero en la sección 1 para probar Multer.', 'error');
+        return;
+      }
+
+      const formData = new FormData();
+      const bytesLength = tamanoMbPorArchivo * 1024 * 1024;
+
+      for (let i = 1; i <= cantidadArchivos; i++) {
+        const buffer = new Uint8Array(bytesLength);
+        const blob = new Blob([buffer], { type: 'application/pdf' });
+        const fileName = `prueba_multer_${tamanoMbPorArchivo}MB_arch${i}_${Date.now()}.pdf`;
+        formData.append('archivo', blob, fileName);
+      }
+
+      document.getElementById('multerResultBox').textContent = `Enviando ${cantidadArchivos} archivo(s) de ${tamanoMbPorArchivo} MB a Multer...`;
+
+      const { ok, status, data } = await apiFetch('/storage/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      document.getElementById('multerResultBox').textContent = JSON.stringify({ status, ...data }, null, 2);
+
+      if (!ok) {
+        showAlert(data.error || 'Multer rechazó la subida según los límites de tu plan.', 'error');
+      } else {
+        showAlert(data.message, 'success');
+        await cargarTodo();
+      }
+    }
+
+    async function subirArchivosReales() {
+      if (!token) {
+        showAlert('Inicia sesión primero en la sección 1.', 'error');
+        return;
+      }
+
+      const input = document.getElementById('realFileInput');
+      if (!input.files || input.files.length === 0) {
+        showAlert('Selecciona al menos un archivo de tu computadora.', 'error');
+        return;
+      }
+
+      const formData = new FormData();
+      for (const file of input.files) {
+        formData.append('archivo', file);
+      }
+
+      const { ok, status, data } = await apiFetch('/storage/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      document.getElementById('multerResultBox').textContent = JSON.stringify({ status, ...data }, null, 2);
+
+      if (!ok) {
+        showAlert(data.error || 'Error al subir archivo(s).', 'error');
+      } else {
+        input.value = '';
+        showAlert(data.message, 'success');
+        await cargarTodo();
+      }
+    }
+
+    async function cargarArchivosUsuario() {
+      if (!token) return;
+      const { ok, data } = await apiFetch('/storage/files');
+      const tbody = document.getElementById('userFilesTableBody');
+      if (!ok) return;
+
+      const archivos = data.archivos || [];
+      if (archivos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5">No tienes archivos activos en la raíz.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = archivos.map((a) => `
+        <tr>
+          <td>#${a.id}</td>
+          <td>${a.nombre}</td>
+          <td>${formatBytes(a.tamano)}</td>
+          <td>${String(a.fecha_subida || '').slice(0, 10)}</td>
+          <td class="actions-row">
+            <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="compartirArchivo(${a.id})">Generar Enlace Compartido</button>
+            <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="eliminarArchivoPermanente(${a.id})">Eliminar y Liberar Cuota</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function compartirArchivo(id) {
+      const { ok, data } = await apiFetch(`/storage/files/${id}/share`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      if (!ok) {
+        showAlert(data.error || 'Error al compartir archivo.', 'error');
+        return;
+      }
+      document.getElementById('multerResultBox').textContent = JSON.stringify(data, null, 2);
+      showAlert(`${data.message} (Plan: ${data.planAplicado}, vigencia asignada: ${data.vigenciaEnlace})`, 'success');
+    }
+
+    async function eliminarArchivoPermanente(id) {
+      const { ok, data } = await apiFetch(`/storage/files/${id}?permanent=true`, {
+        method: 'DELETE',
+      });
+      if (!ok) {
+        showAlert(data.error || 'No se pudo eliminar el archivo.', 'error');
+        return;
+      }
+      showAlert(`Archivo eliminado permanentemente. Espacio liberado: ${formatBytes(data.tamanoLiberado)}.`, 'info');
+      await cargarTodo();
+    }
+
+    async function simularCadena(decoradores) {
+      const { ok, data } = await apiFetch('/subscriptions/decorator-preview', {
+        method: 'POST',
+        body: JSON.stringify({ decoradores, modoAditivoPuro: true }),
+      });
+      if (!ok) return;
+      document.getElementById('decoratorSimBox').textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function cargarHistorialPagos() {
+      if (!token) return;
+      const { ok, data } = await apiFetch('/subscriptions/payments');
+      const tbody = document.getElementById('paymentsTableBody');
+      if (!ok) return;
+
+      const pagos = data.pagos || [];
+      if (pagos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8">Aún no se han registrado pagos en esta cuenta.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = pagos.map((p) => `
+        <tr>
+          <td>#${p.id}</td>
+          <td><code>${p.referencia || '-'}</code></td>
+          <td><strong>${p.planNombre}</strong></td>
+          <td>${p.tipo}</td>
+          <td>Q${Number(p.monto).toFixed(2)}</td>
+          <td>•••• ${p.tarjetaUltimos4 || '----'}</td>
+          <td><span class="pill pill-${p.estado}">${p.estado.toUpperCase()}</span></td>
+          <td>${new Date(p.fecha).toLocaleString()}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function cargarTodo() {
+      await cargarEstadoSuscripcion();
+      await cargarArchivosUsuario();
+      await cargarHistorialPagos();
+    }
+
+    // Inicializar al abrir
+    cargarTodo();
+    simularCadena(['PlanBasico']);
+  </script>
+</body>
+</html>

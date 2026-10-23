@@ -2,21 +2,30 @@ import * as storageService from '../services/storageService.js';
 import { validateId, validateCreateFolder, validateRename } from '../validators/storageValidator.js';
 
 /**
- * Procesa la subida de un archivo al espacio del usuario.
+ * Procesa la subida de uno o múltiples archivos al espacio del usuario,
+ * aplicando las políticas dinámicas de Multer según su Decorador de Suscripción.
  */
 export async function uploadFile(req, res) {
   const usuarioId = req.user.id;
   const carpetaId = req.body.carpetaId ? validateId(req.body.carpetaId, 'carpeta') : null;
 
-  const archivo = await storageService.uploadFile({
+  const resultado = await storageService.uploadFile({
     usuarioId,
     carpetaId,
     file: req.file,
+    files: req.files,
+    planDecorado: req.planDecorado,
   });
 
+  const count = resultado.archivos.length;
   res.status(201).json({
-    message: 'Archivo subido exitosamente.',
-    archivo,
+    message:
+      count > 1
+        ? `${count} archivos subidos exitosamente bajo el ${resultado.planAplicado.clase}.`
+        : `Archivo subido exitosamente bajo el ${resultado.planAplicado.clase}.`,
+    archivo: resultado.archivo,
+    archivos: resultado.archivos,
+    planAplicado: resultado.planAplicado,
   });
 }
 
@@ -207,8 +216,8 @@ export async function shareFile(req, res) {
 
   res.status(200).json({
     message: resultado.destinatario
-      ? `Invitación enviada exitosamente a ${resultado.destinatario.correo}.`
-      : 'Enlace de invitación generado exitosamente.',
+      ? `Invitación enviada exitosamente a ${resultado.destinatario.correo} (vigencia: ${resultado.vigenciaEnlace}).`
+      : `Enlace de invitación generado exitosamente (vigencia: ${resultado.vigenciaEnlace}).`,
     ...resultado,
   });
 }
@@ -235,4 +244,3 @@ export async function downloadSharedFile(req, res) {
 
   return res.download(physicalPath, nombre);
 }
-

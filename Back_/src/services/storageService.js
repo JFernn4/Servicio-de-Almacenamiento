@@ -6,6 +6,7 @@ import * as folderRepository from '../repositories/folderRepository.js';
 import * as userRepository from '../repositories/userRepository.js';
 import { signPurposeToken, verifyPurposeToken } from './tokenService.js';
 import { sendShareInvitationEmail } from './emailService.js';
+import { resolveUserPlanDecorator } from './subscriptionService.js';
 import { config } from '../config/env.js';
 import { FORBIDDEN_FILE_EXTENSIONS, TOKEN_PURPOSES, FILE_SHARE_EXPIRES_IN } from '../config/constants.js';
 import { HttpError } from '../utils/httpError.js';
@@ -14,6 +15,7 @@ const uploadDir = config.storage.uploadDir;
 
 /**
  * Obtiene la ruta física absoluta de un archivo en el servidor a partir de sus metadatos.
+ * (Encapsulado en una única función para facilitar el reemplazo futuro de Multer / almacenamiento local).
  */
 export function getPhysicalFilePath(archivo) {
   const extension = path.extname(archivo.nombre || '').toLowerCase();
@@ -21,71 +23,111 @@ export function getPhysicalFilePath(archivo) {
 }
 
 /**
- * Procesa la carga de un archivo binario validando cuotas y persistiendo metadatos.
+ * Procesa la carga de uno o varios archivos binarios validando cuotas según el Plan decorado
+ * del usuario (Patrón Decorator) y persistiendo metadatos.
  */
-export async function uploadFile({ usuarioId, carpetaId = null, file }) {
-  if (!file) {
-    throw new HttpError(400, 'Debes seleccionar un archivo para subir.');
+export async function uploadFile({ usuarioId, carpetaId = null, file, files = [], planDecorado = null }) {
+  const fileList = Array.isArray(files) && files.length > 0 ? files : file ? [file] : [];
+
+  const cleanupTempFiles = async () => {
+    await Promise.all(
+      fileList.map((f) => (f?.path ? fs.unlink(f.path).catch(() => {}) : Promise.resolve()))
+    );
+  };
+
+  if (fileList.length === 0) {
+    throw new HttpError(400, 'Debes seleccionar al menos un archivo para subir.');
   }
 
-  // 1. Validar que la carpeta de destino exista y pertenezca al usuario (si no es la raíz)
+  // 1. Resolver el Plan decorado si no fue inyectado por el middleware
+  const activeDecorator =
+    planDecorado || (await resolveUserPlanDecorator(usuarioId)).planDecorado;
+  const politicaMulter = activeDecorator.obtenerPoliticaMulter();
+
+  if (fileList.length > politicaMulter.maxFiles) {
+    await cleanupTempFiles();
+    throw new HttpError(
+      400,
+      `Tu plan actual (${activeDecorator.constructor.name}) permite subir máximo ${politicaMulter.maxFiles} archivo(s) por operación.`
+    );
+  }
+
+  for (const item of fileList) {
+    if (item.size > politicaMulter.maxFileSizeBytes) {
+      await cleanupTempFiles();
+      const maxMb = Number((politicaMulter.maxFileSizeBytes / (1024 * 1024)).toFixed(0));
+      throw new HttpError(
+        400,
+        `El archivo "${item.originalname}" excede el límite de ${maxMb} MB permitido por tu plan (${activeDecorator.constructor.name}).`
+      );
+    }
+  }
+
+  // 2. Validar que la carpeta de destino exista y pertenezca al usuario (si no es la raíz)
   if (carpetaId) {
     const carpeta = await folderRepository.findFolderByIdAndUser(carpetaId, usuarioId);
     if (!carpeta) {
-      await fs.unlink(file.path).catch(() => {});
+      await cleanupTempFiles();
       throw new HttpError(404, 'La carpeta especificada no existe o no tienes permisos para acceder a ella.');
     }
   }
 
-  // 2. Validar cuota de almacenamiento disponible
+  // 3. Validar cuota de almacenamiento disponible (usando la cuota del usuario sincronizada con su Plan decorado)
   const quota = await userRepository.getStorageQuota(usuarioId);
   if (!quota) {
-    await fs.unlink(file.path).catch(() => {});
+    await cleanupTempFiles();
     throw new HttpError(404, 'Usuario no encontrado.');
   }
 
+  const totalBatchBytes = fileList.reduce((acc, f) => acc + Number(f.size || 0), 0);
   const espacioConsumido = Number(quota.espacio_consumido);
-  const espacioDisponible = Number(quota.espacio_disponible);
-  const nuevoConsumo = espacioConsumido + file.size;
+  const espacioDisponible = Math.max(Number(quota.espacio_disponible), activeDecorator.almacenamiento());
+  const nuevoConsumo = espacioConsumido + totalBatchBytes;
 
   if (nuevoConsumo > espacioDisponible) {
-    await fs.unlink(file.path).catch(() => {});
+    await cleanupTempFiles();
     throw new HttpError(
       400,
-      `Espacio de almacenamiento insuficiente. Disponible: ${Math.max(0, espacioDisponible - espacioConsumido)} bytes, requerido: ${file.size} bytes.`
+      `Espacio de almacenamiento insuficiente en tu ${activeDecorator.constructor.name}. Disponible: ${Math.max(0, espacioDisponible - espacioConsumido)} bytes, requerido: ${totalBatchBytes} bytes.`
     );
   }
 
-  let nuevoArchivo = null;
-  let targetPath = null;
+  const archivosCreados = [];
+  const rutasMovidas = [];
 
   try {
-    // 3. Registrar metadatos en la base de datos
-    nuevoArchivo = await fileRepository.createFile({
-      usuarioId,
-      carpetaId: carpetaId || null,
-      nombre: file.originalname,
-      tamano: file.size,
-      tipo: file.mimetype || 'application/octet-stream',
-    });
+    for (const item of fileList) {
+      // 4. Registrar metadatos en la base de datos
+      const nuevoArchivo = await fileRepository.createFile({
+        usuarioId,
+        carpetaId: carpetaId || null,
+        nombre: item.originalname,
+        tamano: item.size,
+        tipo: item.mimetype || 'application/octet-stream',
+      });
+      archivosCreados.push(nuevoArchivo);
 
-    // 4. Mover el archivo físico al nombre definitivo con su ID único
-    targetPath = getPhysicalFilePath(nuevoArchivo);
-    await fs.rename(file.path, targetPath);
+      // 5. Mover el archivo físico al nombre definitivo con su ID único
+      const targetPath = getPhysicalFilePath(nuevoArchivo);
+      await fs.rename(item.path, targetPath);
+      rutasMovidas.push(targetPath);
+    }
 
-    // 5. Incrementar el espacio consumido del usuario
-    await userRepository.incrementConsumedSpace(usuarioId, file.size);
+    // 6. Incrementar el espacio consumido del usuario
+    await userRepository.incrementConsumedSpace(usuarioId, totalBatchBytes);
 
-    return nuevoArchivo;
+    return {
+      archivo: archivosCreados[0],
+      archivos: archivosCreados,
+      planAplicado: activeDecorator.toJSON(),
+    };
   } catch (error) {
     // Limpieza preventiva en disco y BD si ocurrió algún fallo intermedio
-    await fs.unlink(file.path).catch(() => {});
-    if (targetPath) {
-      await fs.unlink(targetPath).catch(() => {});
-    }
-    if (nuevoArchivo?.id) {
-      await fileRepository.deleteFile(nuevoArchivo.id, usuarioId).catch(() => {});
-    }
+    await cleanupTempFiles();
+    await Promise.all(rutasMovidas.map((p) => fs.unlink(p).catch(() => {})));
+    await Promise.all(
+      archivosCreados.map((a) => fileRepository.deleteFile(a.id, usuarioId).catch(() => {}))
+    );
     throw error;
   }
 }
@@ -243,7 +285,7 @@ export async function renameFile(archivoId, usuarioId, nuevoNombre) {
     await fs.rename(oldPhysicalPath, newPhysicalPath);
   }
 
-  const archivoActualizado = await fileRepository.renameFile(archivoId, usuarioId, nombreFinal);
+  const archivoActualizado = await fileRepository.renameFile(archivoId, usuarioId, nuevoNombre ? nombreFinal : archivo.nombre);
   return archivoActualizado;
 }
 
@@ -361,8 +403,8 @@ export async function deleteFolder(carpetaId, usuarioId) {
 }
 
 /**
- * Genera un enlace de invitación compartido para un archivo y, si se indica un destinatario,
- * valida que exista en el sistema y le envía el correo de invitación (Diagrama Invitación UML).
+ * Genera un enlace de invitación compartido para un archivo usando la vigencia dinámica
+ * que otorga el Decorador de Suscripción del usuario (24h, 7d, 30d o 365d).
  */
 export async function createShareInvitation(archivoId, usuarioId, { correoDestinatario } = {}) {
   const archivo = await fileRepository.findFileByIdAndUser(archivoId, usuarioId);
@@ -385,10 +427,13 @@ export async function createShareInvitation(archivoId, usuarioId, { correoDestin
     }
   }
 
+  const { planDecorado } = await resolveUserPlanDecorator(usuarioId);
+  const vigenciaEnlace = planDecorado.obtenerPoliticaMulter().shareExpiresIn || FILE_SHARE_EXPIRES_IN;
+
   const shareToken = signPurposeToken(
     { id: archivo.id, correo: destinatario?.correo || remitente.correo },
     TOKEN_PURPOSES.FILE_SHARE,
-    FILE_SHARE_EXPIRES_IN
+    vigenciaEnlace
   );
 
   const shareUrl = `${config.frontendUrl}?mode=shared-file&token=${encodeURIComponent(shareToken)}`;
@@ -408,6 +453,8 @@ export async function createShareInvitation(archivoId, usuarioId, { correoDestin
   return {
     shareToken,
     shareUrl,
+    vigenciaEnlace,
+    planAplicado: planDecorado.constructor.name,
     destinatario: destinatario
       ? { id: destinatario.id, nombre: destinatario.nombre, correo: destinatario.correo }
       : null,

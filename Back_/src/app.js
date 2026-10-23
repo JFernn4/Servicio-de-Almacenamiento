@@ -5,6 +5,7 @@ import { config } from './config/env.js';
 import authRoutes from './routes/authRoutes.js';
 import storageRoutes from './routes/storageRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import { notFound, errorHandler } from './middlewares/errorHandler.js';
 
 const app = express();
@@ -27,6 +28,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/storage', storageRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
