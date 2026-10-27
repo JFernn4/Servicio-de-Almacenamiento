@@ -34,7 +34,7 @@ export function toPublicUser(row) {
 
 function buildSession(row) {
   const user = toPublicUser(row);
-  return { token: signToken(user), user };
+  return { token: signToken(user, row.contrasena_hash), user };
 }
 
 export async function register({ nombre, correo, contrasena, tipoCuenta }) {
@@ -58,7 +58,7 @@ export async function register({ nombre, correo, contrasena, tipoCuenta }) {
     throw error;
   }
 
-  const row = await userRepository.findById(userId);
+  const row = await userRepository.findByIdWithPassword(userId);
 
   const verificationToken = signPurposeToken(row, TOKEN_PURPOSES.EMAIL_VERIFICATION, EMAIL_VERIFICATION_EXPIRES_IN);
 

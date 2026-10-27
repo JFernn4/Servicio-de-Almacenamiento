@@ -76,9 +76,10 @@ Servicio-de-Almacenamiento/
         │   ├── adminController.js        # Controlador HTTP del rol Administrador
         │   └── subscriptionController.js # Controlador HTTP de suscripciones, pagos y simulador Decorator
         ├── middlewares/
-        │   ├── authMiddleware.js     # Validación de JWT (authenticateToken) y rol Administrador (requireAdmin)
-        │   ├── errorHandler.js       # Manejo centralizado de 404 y errores HTTP
-        │   └── uploadMiddleware.js   # Carga y almacenamiento en disco con Multer dinámico gobernado por el Patrón Decorator
+        │   ├── authMiddleware.js      # Validación de JWT (authenticateToken), vigencia de clave y rol Administrador (requireAdmin)
+        │   ├── errorHandler.js        # Manejo centralizado de 404 y errores HTTP
+        │   ├── rateLimitMiddleware.js # Límite de intentos (Rate Limiting) en login, recuperación y cargas
+        │   └── uploadMiddleware.js    # Carga y almacenamiento en disco con Multer dinámico gobernado por el Patrón Decorator
         ├── repositories/
         │   ├── userRepository.js         # Consultas SQL de usuarios y cuotas de almacenamiento
         │   ├── fileRepository.js         # Consultas SQL para archivos (CRUD, búsquedas, recientes, papelera)
@@ -195,9 +196,11 @@ flowchart TD
 - **Consulta de Perfil (`getProfile` / `/me`):** Devuelve datos actualizados del usuario desde PostgreSQL.
 - **Verificación de Correo (`verifyEmail` / `resendVerification`) y Recuperación de Contraseña (`forgotPassword` / `resetPassword`):** Gestionados en `accountService.js` mediante tokens con propósito (`TOKEN_PURPOSES`).
 
-### 5.4. Middleware de Seguridad ([`src/middlewares/authMiddleware.js`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/src/middlewares/authMiddleware.js))
-- **`authenticateToken`**: Valida `Authorization: Bearer <token>` e inyecta `req.user`.
+### 5.4. Middleware de Seguridad y Límite de Intentos ([`src/middlewares/authMiddleware.js`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/src/middlewares/authMiddleware.js) y [`src/middlewares/rateLimitMiddleware.js`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/src/middlewares/rateLimitMiddleware.js))
+- **`authenticateToken`**: Valida `Authorization: Bearer <token>`, comprueba que la cuenta continúe activa en PostgreSQL, verifica la huella criptográfica `pwd` derivada de `contrasena_hash` (cerrando automáticamente todas las sesiones abiertas previas si el usuario cambia o restablece su contraseña) e inyecta `req.user` con su rol actualizado.
 - **`requireAdmin`**: Comprueba que `req.user.rol === 'Administrador'`.
+- **Enlaces de recuperación de un solo uso (`getPasswordFingerprint`)**: En [`tokenService.js`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/src/services/tokenService.js) y [`accountService.js`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/src/services/accountService.js), el token de `reset-password` incluye la huella HMAC-SHA256 del hash de contraseña actual; en cuanto se restablece la clave por primera vez, el enlace queda invalidado inmediatamente aunque no hayan transcurrido sus 30 minutos de vigencia.
+- **Rate Limiting (`loginRateLimiter`, `passwordResetRateLimiter`, `uploadRateLimiter`)**: Limita intentos fallidos de inicio de sesión (máx. 5 intentos por 15 minutos con cabeceras `X-RateLimit-*` y `Retry-After`, devolviendo `429 Too Many Requests`), solicitudes de recuperación/reenvío de correo y ráfagas de subida en `/api/storage/upload`.
 
 ### 5.5. Servicio de Correo ([`src/services/emailService.js`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/src/services/emailService.js))
 - Opera con SMTP real o en modo simulación transparente cuando no hay credenciales configuradas.
@@ -335,10 +338,10 @@ Desde el directorio `Back_/`:
 
 ## 9. Prototipos de Frontend (`Back_/Pruebas_Front/`)
 
-Para probar flujos de usuario antes de que el equipo de frontend desarrolle las pantallas definitivas en React (respetando la regla de no modificar el frontend principal):
+Todos los documentos HTML de prueba están interconectados mediante una barra de navegación común, sincronizan su sesión en `localStorage` (`vincloud_token`) y verifican en vivo la conexión con PostgreSQL (`almacenamiento_db`) a través de `GET /api/health`. Se pueden abrir directamente desde el explorador de archivos o desde el servidor Express en `http://localhost:5000/pruebas/`:
 
-- [`verificacion-correo.html`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/Pruebas_Front/verificacion-correo.html): Formulario para ingresar tokens de verificación, detectar tokens desde URL y solicitar el reenvío de correos conectándose en vivo a la API (`http://localhost:5000/api/auth`).
-- [`registro-roles.html`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/Pruebas_Front/registro-roles.html): Prototipo para probar la creación de cuentas con selección dinámica de rol (Administrador vs Usuario) y validación de inicio de sesión según el rol asignado.
-- [`subida-archivos.html`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/Pruebas_Front/subida-archivos.html): Prototipo para probar la carga de archivos con Multer, creación de carpetas, papelera, vista previa e invitaciones por enlace.
-- [`panel-administrador.html`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/Pruebas_Front/panel-administrador.html): Prototipo para probar los endpoints exclusivos del rol Administrador (`/api/admin/reports`, `/api/admin/plans`, `/api/admin/user-plans` y `/api/admin/users`).
-- [`suscripciones-decorator.html`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/Pruebas_Front/suscripciones-decorator.html): Prototipo para probar el módulo de suscripciones con el **Patrón Decorator** (`Plan`, `PlanGratuito`, `DecoradorPlanes`, `PlanBasico`, `Profesional`, `Empresarial`), transacciones de pagos (`v_historial_pagos`) y pruebas en vivo de **Multer Dinámico** (tamaño máximo por archivo, cargas múltiples simultáneas y vigencia de enlaces compartidos según el plan activo).
+- [`panel-administrador.html`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/Pruebas_Front/panel-administrador.html): Panel completo de pruebas del rol **Administrador** conectado a PostgreSQL: creación/inicio de sesión en 1 clic de cuenta Admin, reporte general del servicio (`/api/admin/reports`), administración del catálogo de planes (`/api/admin/plans`), visualización de planes por usuario según el Diagrama de Actividad UML (`/api/admin/user-plans`) y gestión de clientes, cuotas, roles y verificación (`/api/admin/users`).
+- [`registro-roles.html`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/Pruebas_Front/registro-roles.html): Prototipo para probar la creación de cuentas en PostgreSQL con selección dinámica de rol (Administrador vs Usuario), inicio de sesión y límite de intentos (`loginRateLimiter`).
+- [`verificacion-correo.html`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/Pruebas_Front/verificacion-correo.html): Prototipo conectado a PostgreSQL para validar tokens de correo (`usuario.correo_verificado`), reenviar enlaces y probar el restablecimiento de contraseña de un solo uso (`/api/auth/reset-password`) e invalidación de sesiones previas.
+- [`subida-archivos.html`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/Pruebas_Front/subida-archivos.html): Prototipo para probar la carga de archivos con Multer, creación de carpetas en la tabla `carpeta`, papelera, vista previa e invitaciones por enlace.
+- [`suscripciones-decorator.html`](file:///C:/Users/andre/OneDrive/Documentos/GitHub/Servicio-de-Almacenamiento/Back_/Pruebas_Front/suscripciones-decorator.html): Prototipo para probar el módulo de suscripciones con el **Patrón Decorator** (`Plan`, `PlanGratuito`, `DecoradorPlanes`, `PlanBasico`, `Profesional`, `Empresarial`), transacciones de pagos (`v_historial_pagos`) y pruebas en vivo de **Multer Dinámico**.

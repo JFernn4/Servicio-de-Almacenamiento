@@ -17,6 +17,22 @@ export const EMAIL_VERIFICATION_EXPIRES_IN = '24h';
 export const PASSWORD_RESET_EXPIRES_IN = '30m';
 export const FILE_SHARE_EXPIRES_IN = '7d';
 
+// Políticas de límite de intentos (Rate Limiting) para seguridad de endpoints críticos
+export const RATE_LIMIT_POLICIES = {
+  LOGIN: {
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    maxAttempts: 5, // Máximo 5 intentos fallidos de inicio de sesión por ventana
+  },
+  PASSWORD_RESET: {
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    maxAttempts: 5, // Máximo 5 solicitudes de recuperación/reenvío por ventana
+  },
+  UPLOAD: {
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    maxAttempts: 30, // Máximo 30 peticiones de subida por ventana
+  },
+};
+
 // Parámetros del módulo de almacenamiento y políticas dinámicas de Multer según Suscripción (Patrón Decorator)
 export const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB valor de referencia general
 export const FORBIDDEN_FILE_EXTENSIONS = ['.exe', '.sh', '.bat', '.cmd', '.vbs', '.com', '.msi'];

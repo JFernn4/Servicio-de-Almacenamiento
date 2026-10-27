@@ -17,6 +17,17 @@ export async function findById(id) {
 }
 
 /**
+ * Busca por ID incluyendo el hash de contraseña (para validar vigencia de sesiones y tokens de uso único).
+ */
+export async function findByIdWithPassword(id) {
+  const { rows } = await query(
+    `SELECT ${PUBLIC_COLUMNS}, u.contrasena_hash ${FROM_USER_WITH_ROLE} WHERE u.id = $1`,
+    [id]
+  );
+  return rows[0] ?? null;
+}
+
+/**
  * Busca por correo incluyendo el hash de contraseña (solo para autenticación).
  */
 export async function findByEmailWithPassword(correo) {

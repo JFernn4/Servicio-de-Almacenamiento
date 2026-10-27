@@ -1,5 +1,9 @@
 import * as userRepository from '../repositories/userRepository.js';
-import { signPurposeToken, verifyPurposeToken } from './tokenService.js';
+import {
+  signPurposeToken,
+  verifyPurposeToken,
+  getPasswordFingerprint,
+} from './tokenService.js';
 import { hashPassword } from './passwordService.js';
 import { sendPasswordResetEmail, sendVerificationEmail } from './emailService.js';
 import { HttpError } from '../utils/httpError.js';
@@ -61,6 +65,20 @@ export async function resetPassword({ token, nuevaContrasena }) {
   const payload = verifyPurposeToken(token, TOKEN_PURPOSES.PASSWORD_RESET);
   if (!payload) {
     throw new HttpError(400, 'El enlace de recuperación es inválido o ha expirado. Por favor solicita uno nuevo.');
+  }
+
+  const user = await userRepository.findByIdWithPassword(payload.id);
+  if (!user) {
+    throw new HttpError(404, 'Usuario no encontrado.');
+  }
+
+  // Validar que el enlace sea de un solo uso comparando la huella de contraseña embebida
+  const currentFingerprint = getPasswordFingerprint(user.contrasena_hash);
+  if (!payload.pwd || payload.pwd !== currentFingerprint) {
+    throw new HttpError(
+      400,
+      'Este enlace de recuperación ya fue utilizado o ha expirado. Por favor solicita uno nuevo.'
+    );
   }
 
   const updated = await userRepository.updatePassword(payload.id, await hashPassword(nuevaContrasena));

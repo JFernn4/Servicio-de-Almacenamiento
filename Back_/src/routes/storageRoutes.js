@@ -21,6 +21,7 @@ import {
 } from '../controllers/storageController.js';
 import { authenticateToken } from '../middlewares/authMiddleware.js';
 import { handleSingleUpload } from '../middlewares/uploadMiddleware.js';
+import { uploadRateLimiter } from '../middlewares/rateLimitMiddleware.js';
 
 const router = Router();
 
@@ -32,7 +33,7 @@ router.get('/shared/:token/download', downloadSharedFile);
 router.use(authenticateToken);
 
 // --- Archivos ---
-router.post('/upload', handleSingleUpload('archivo'), uploadFile);
+router.post('/upload', uploadRateLimiter, handleSingleUpload('archivo'), uploadFile);
 router.get('/files', getDirectoryContents);
 router.get('/files/recent', getRecentFiles);
 router.get('/files/search', searchFiles);

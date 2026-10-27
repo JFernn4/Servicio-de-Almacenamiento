@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel de Administración - Pruebas VinCloud</title>
+  <title>Panel de Administración (Rol Admin + BD PostgreSQL) - VinCloud</title>
   <style>
     * {
       box-sizing: border-box;
@@ -15,7 +15,7 @@
     body {
       background-color: #F5F4F4;
       color: #1E293B;
-      padding: 28px 16px;
+      padding: 24px 16px;
       display: flex;
       justify-content: center;
       min-height: 100vh;
@@ -23,12 +23,65 @@
 
     .container {
       background: #FFFFFF;
-      max-width: 960px;
+      max-width: 1040px;
       width: 100%;
       border-radius: 12px;
       border: 1px solid #E2E8F0;
       box-shadow: 0 4px 20px rgba(59, 10, 31, 0.08);
       overflow: hidden;
+    }
+
+    .nav-bar {
+      background: #250513;
+      padding: 10px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .nav-links a {
+      color: #F8FAFC;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      transition: background 0.15s;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      background: #7D1535;
+      color: #FFFFFF;
+    }
+
+    .db-status {
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #F8FAFC;
+    }
+
+    .db-status.online {
+      background: #DCFCE7;
+      color: #166534;
+    }
+
+    .db-status.offline {
+      background: #FEE2E2;
+      color: #991B1B;
     }
 
     .header {
@@ -86,6 +139,7 @@
       font-size: 12.5px;
       color: #64748B;
       margin-bottom: 14px;
+      line-height: 1.4;
     }
 
     .grid-2 {
@@ -96,8 +150,14 @@
 
     .grid-4 {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
       gap: 12px;
+    }
+
+    @media (max-width: 680px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
     }
 
     .metric-card {
@@ -109,17 +169,23 @@
     }
 
     .metric-label {
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 700;
       color: #64748B;
       text-transform: uppercase;
     }
 
     .metric-value {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 800;
       color: #3B0A1F;
       margin-top: 4px;
+    }
+
+    .metric-sub {
+      font-size: 11.5px;
+      color: #64748B;
+      margin-top: 3px;
     }
 
     .form-group {
@@ -175,6 +241,10 @@
       border: 1px solid #7D1535;
     }
 
+    .btn-outline:hover {
+      background-color: #FDF2F4;
+    }
+
     .btn-danger {
       background-color: #FEE2E2;
       color: #991B1B;
@@ -184,6 +254,13 @@
     .btn-sm {
       padding: 5px 9px;
       font-size: 11.5px;
+    }
+
+    .actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
     }
 
     .table-wrapper {
@@ -201,13 +278,12 @@
     }
 
     th {
-      background: #F1F5F9;
-      color: #475569;
+      background: #3B0A1F;
+      color: #FFFFFF;
       text-align: left;
       padding: 9px 12px;
       font-size: 11px;
       text-transform: uppercase;
-      border-bottom: 1px solid #E2E8F0;
     }
 
     td {
@@ -224,84 +300,123 @@
       font-weight: 700;
     }
 
-    .pill-admin { background: #FDF2F4; color: #7D1535; }
-    .pill-user { background: #EFF6FF; color: #1D4ED8; }
+    .pill-admin { background: #FDF2F4; color: #7D1535; border: 1px solid #FBCFE8; }
+    .pill-user { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
     .pill-active { background: #DCFCE7; color: #166534; }
     .pill-inactive { background: #FEE2E2; color: #991B1B; }
 
     .feedback {
-      padding: 10px 14px;
+      padding: 11px 14px;
       border-radius: 6px;
       font-size: 12.5px;
       display: none;
+      line-height: 1.4;
     }
     .feedback.success { display: block; background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
     .feedback.error { display: block; background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+    .feedback.info { display: block; background: #FDF2F4; color: #3B0A1F; border: 1px solid #FBCFE8; }
   </style>
 </head>
 <body>
   <div class="container">
+    <nav class="nav-bar">
+      <div class="nav-links">
+        <a href="panel-administrador.html" class="active">1. Panel Admin</a>
+        <a href="registro-roles.html">2. Registro y Roles</a>
+        <a href="verificacion-correo.html">3. Verificación y Claves</a>
+        <a href="subida-archivos.html">4. Subida y Archivos</a>
+        <a href="suscripciones-decorator.html">5. Suscripciones (Decorator)</a>
+      </div>
+      <div id="dbStatusBadge" class="db-status">Verificando BD...</div>
+    </nav>
+
     <div class="header">
-      <h1>VinCloud - Panel de Administración</h1>
-      <p>Gestión de Cuentas, Consumo, Catálogo de Planes y Reportes Generales</p>
-      <div class="badge">Prueba Temporal de Rol Administrador</div>
+      <h1>VinCloud — Panel de Pruebas del Rol Administrador</h1>
+      <p>Conectado en tiempo real a PostgreSQL (<code>almacenamiento_db</code>) vía <code>/api/admin</code> y <code>/api/auth</code></p>
+      <div class="badge">Rol Administrador · Casos de Uso y Diagrama de Actividad UML</div>
     </div>
 
     <div class="content">
       <div id="feedbackBox" class="feedback"></div>
 
-      <!-- 1. Autenticación de Administrador -->
+      <!-- 1. Autenticación y Creación Rápida de Administrador en BD -->
       <div class="section">
-        <div class="section-title">1. Sesión de Administrador</div>
-        <div class="section-desc">Inicia sesión con una cuenta de rol <strong>Administrador</strong> para consultar <code>/api/admin</code>.</div>
-        <form id="loginForm" class="grid-2">
-          <div class="form-group">
-            <label for="adminEmail">Correo de Administrador</label>
-            <input type="email" id="adminEmail" placeholder="admin@vincloud.com" required>
+        <div class="section-title">1. Sesión de Administrador en PostgreSQL</div>
+        <div class="section-desc">
+          Inicia sesión o registra con 1 clic una cuenta con rol <strong>Administrador</strong> directamente en la tabla <code>usuario</code> de PostgreSQL. El token se sincroniza automáticamente con las demás páginas de prueba.
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <div class="form-group">
+              <label for="adminName">Nombre del Administrador (para registro rápido)</label>
+              <input type="text" id="adminName" value="Administrador General VinCloud" placeholder="Nombre completo">
+            </div>
+            <div class="form-group">
+              <label for="adminEmail">Correo de Administrador</label>
+              <input type="email" id="adminEmail" value="admin@vincloud.com" placeholder="admin@vincloud.com" required>
+            </div>
+            <div class="form-group">
+              <label for="adminPass">Contraseña</label>
+              <input type="password" id="adminPass" value="Admin123" placeholder="Mínimo 6 caracteres" required>
+            </div>
+            <div class="actions-row">
+              <button type="button" class="btn" onclick="loginAdmin()">Iniciar Sesión Admin</button>
+              <button type="button" class="btn btn-secondary" onclick="registerOrLoginAdmin()">Crear / Asegurar Admin en BD (1 Clic)</button>
+              <button type="button" class="btn btn-outline" onclick="loadAllAdminData()">Recargar Datos de BD</button>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="adminPass">Contraseña</label>
-            <input type="password" id="adminPass" placeholder="Contraseña" required>
+
+          <div>
+            <div class="metric-card">
+              <div class="metric-label">Administrador Autenticado</div>
+              <div class="metric-value" id="activeAdminName">Sin sesión activa</div>
+              <div class="metric-sub" id="activeAdminEmail">Usa los botones de la izquierda para autenticar</div>
+            </div>
+            <div class="form-group" style="margin-top: 10px; margin-bottom: 0;">
+              <label for="jwtToken">Token JWT Activo (compartido en localStorage)</label>
+              <input type="text" id="jwtToken" placeholder="Bearer token...">
+            </div>
           </div>
-          <div style="grid-column: 1 / -1; display: flex; gap: 8px;">
-            <button type="submit" class="btn btn-secondary">Iniciar Sesión como Administrador</button>
-            <button type="button" class="btn btn-outline" id="btnReloadAll">Recargar Todo el Panel</button>
-          </div>
-        </form>
-        <div class="form-group" style="margin-top: 10px; margin-bottom: 0;">
-          <label for="jwtToken">Token JWT de Administrador</label>
-          <input type="text" id="jwtToken" placeholder="Bearer token...">
         </div>
       </div>
 
       <!-- 2. Reporte General del Servicio (Clase Reporte UML) -->
       <div class="section">
         <div class="section-title">2. Reporte General del Servicio (<code>GET /api/admin/reports</code>)</div>
-        <div class="section-desc">Supervisión del consumo total de infraestructura, usuarios activos e ingresos simulados.</div>
+        <div class="section-desc">
+          Implementa <code>Administrador.generarReporte(): Reporte</code> del Diagrama de Clases UML consultando agregaciones en vivo sobre <code>usuario</code>, <code>archivo</code>, <code>carpeta</code>, <code>suscripcion</code> y <code>pago</code>.
+        </div>
         <div class="grid-4">
           <div class="metric-card">
-            <div class="metric-label">Usuarios Activos</div>
+            <div class="metric-label">Usuarios Registrados</div>
             <div class="metric-value" id="repUsuarios">-</div>
+            <div class="metric-sub" id="repUsuariosSub">Verificados: -</div>
           </div>
           <div class="metric-card">
             <div class="metric-label">Espacio Total Consumido</div>
             <div class="metric-value" id="repConsumido">-</div>
+            <div class="metric-sub" id="repDisponibleSub">Capacidad asignada: -</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Ingresos Simulados</div>
+            <div class="metric-label">Ingresos Simulados (Aprobados)</div>
             <div class="metric-value" id="repIngresos">-</div>
+            <div class="metric-sub" id="repSuscripcionesSub">Suscripciones activas: -</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Archivos / Carpetas</div>
+            <div class="metric-label">Recursos en Almacenamiento</div>
             <div class="metric-value" id="repRecursos">-</div>
+            <div class="metric-sub" id="repFechaSub">Fecha reporte: -</div>
           </div>
         </div>
       </div>
 
       <!-- 3. Administrar Catálogo de Planes -->
       <div class="section">
-        <div class="section-title">3. Catálogo de Planes de Almacenamiento (<code>/api/admin/plans</code>)</div>
-        <div class="section-desc">Crea nuevos planes o activa/desactiva los existentes en el catálogo.</div>
+        <div class="section-title">3. Administrar Catálogo de Planes de Almacenamiento (<code>GET / POST / PATCH /api/admin/plans</code>)</div>
+        <div class="section-desc">
+          Implementa <code>Administrador.gestionarPlanes()</code> sobre la tabla <code>plan</code> en PostgreSQL. Permite crear nuevos planes, modificar precios/capacidades o desactivarlos del catálogo.
+        </div>
 
         <form id="planForm" class="grid-2">
           <div class="form-group">
@@ -310,21 +425,21 @@
           </div>
           <div class="form-group">
             <label for="planDesc">Descripción</label>
-            <input type="text" id="planDesc" placeholder="Descripción breve">
+            <input type="text" id="planDesc" placeholder="Ej. Almacenamiento extendido para departamentos">
           </div>
           <div class="form-group">
-            <label for="planPrecio">Precio (Q)</label>
+            <label for="planPrecio">Precio Mensual (Q)</label>
             <input type="number" step="0.01" min="0" id="planPrecio" placeholder="95.00" required>
           </div>
           <div class="form-group">
-            <label for="planGb">Capacidad (en GB) y Vigencia (días)</label>
+            <label for="planGb">Capacidad (GB) y Vigencia (días)</label>
             <div style="display: flex; gap: 8px;">
               <input type="number" min="1" id="planGb" placeholder="GB (ej. 500)" required>
               <input type="number" min="1" id="planVigencia" value="30" placeholder="Días" required>
             </div>
           </div>
           <div style="grid-column: 1 / -1;">
-            <button type="submit" class="btn">Crear Nuevo Plan</button>
+            <button type="submit" class="btn">Guardar Nuevo Plan en PostgreSQL</button>
           </div>
         </form>
 
@@ -333,41 +448,87 @@
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Plan</th>
+                <th>Nombre y Descripción</th>
                 <th>Precio</th>
                 <th>Capacidad</th>
                 <th>Vigencia</th>
-                <th>Suscritos</th>
-                <th>Estado</th>
-                <th>Acciones</th>
+                <th>Suscripciones Activas</th>
+                <th>Estado en Catálogo</th>
+                <th>Acciones en BD</th>
               </tr>
             </thead>
             <tbody id="plansTableBody">
-              <tr><td colspan="8">Inicia sesión como Administrador para cargar los planes.</td></tr>
+              <tr><td colspan="8">Inicia sesión como Administrador para consultar la tabla <code>plan</code>.</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- 4. Visualizar Planes de Usuarios (Diagrama de Actividad UML) -->
+      <!-- 4. Diagrama de Actividad UML: Administrador visualiza planes de usuarios -->
       <div class="section">
-        <div class="section-title">4. Planes de Usuarios y Gestión de Cuentas (<code>/api/admin/user-plans</code> y <code>/api/admin/users</code>)</div>
-        <div class="section-desc">Supervisa el plan contratado, consumo de almacenamiento y administra cuentas de clientes.</div>
+        <div class="section-title">4. Diagrama de Actividad UML: Visualizar Planes de Usuarios (<code>GET /api/admin/user-plans</code>)</div>
+        <div class="section-desc">
+          Consulta específica del diagrama <em>"Administrador visualiza planes de usuarios"</em> que une <code>usuario</code>, <code>rol</code>, <code>suscripcion</code> y <code>plan</code>.
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID Usuario</th>
+                <th>Cliente</th>
+                <th>Rol</th>
+                <th>Plan Actual</th>
+                <th>Precio Plan</th>
+                <th>Estado Suscripción</th>
+                <th>Vigencia / Días Restantes</th>
+                <th>Consumo / Capacidad</th>
+              </tr>
+            </thead>
+            <tbody id="userPlansTableBody">
+              <tr><td colspan="8">Inicia sesión como Administrador para visualizar los planes por usuario.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 5. Gestionar Cuentas y Consumo de Clientes -->
+      <div class="section">
+        <div class="section-title">5. Gestionar Cuentas y Consumo de Clientes (<code>GET / PATCH / DELETE /api/admin/users</code>)</div>
+        <div class="section-desc">
+          Implementa <code>Administrador.gestionarUsuarios()</code>: permite crear clientes de prueba, modificar su cuota de almacenamiento en GB, cambiar su rol, verificar su correo o eliminar su cuenta de PostgreSQL.
+        </div>
+
+        <form id="quickClientForm" class="grid-2" style="margin-bottom: 12px;">
+          <div class="form-group">
+            <label for="clientName">Crear Cliente de Prueba en BD — Nombre</label>
+            <input type="text" id="clientName" placeholder="Ej. Carlos Alvarado" required>
+          </div>
+          <div class="form-group">
+            <label for="clientEmail">Correo y Contraseña del Cliente</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="email" id="clientEmail" placeholder="cliente@vincloud.com" required>
+              <input type="password" id="clientPass" value="Cliente123" placeholder="Clave" required>
+              <button type="submit" class="btn btn-secondary" style="white-space: nowrap;">+ Crear Cliente</button>
+            </div>
+          </div>
+        </form>
+
         <div class="table-wrapper">
           <table>
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Usuario</th>
+                <th>Nombre y Correo</th>
                 <th>Rol</th>
-                <th>Plan Actual</th>
-                <th>Consumo / Cuota</th>
+                <th>Plan Activo</th>
+                <th>Consumo / Cuota Asignada</th>
+                <th>Archivos / Carpetas</th>
                 <th>Verificado</th>
-                <th>Acciones</th>
+                <th>Acciones Administrativas</th>
               </tr>
             </thead>
             <tbody id="usersTableBody">
-              <tr><td colspan="7">Inicia sesión como Administrador para listar los usuarios.</td></tr>
+              <tr><td colspan="8">Inicia sesión como Administrador para listar los usuarios de PostgreSQL.</td></tr>
             </tbody>
           </table>
         </div>
@@ -396,39 +557,113 @@
     function authHeaders() {
       return {
         'Authorization': `Bearer ${tokenInput.value.trim()}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       };
     }
 
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    async function checkDatabaseStatus() {
+      const badge = document.getElementById('dbStatusBadge');
       try {
+        const res = await fetch(`${API_BASE}/health`);
+        const data = await res.json();
+        if (res.ok && data.status === 'ok') {
+          badge.className = 'db-status online';
+          badge.textContent = `🟢 BD Conectada (${data.dbName || 'almacenamiento_db'})`;
+        } else {
+          badge.className = 'db-status offline';
+          badge.textContent = '🔴 BD Desconectada';
+        }
+      } catch {
+        badge.className = 'db-status offline';
+        badge.textContent = '🔴 Servidor Backend Apagado (Puerto 5000)';
+      }
+    }
+
+    async function loginAdmin() {
+      try {
+        const correo = document.getElementById('adminEmail').value.trim();
+        const contrasena = document.getElementById('adminPass').value;
+
         const res = await fetch(`${API_BASE}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            correo: document.getElementById('adminEmail').value.trim(),
-            contrasena: document.getElementById('adminPass').value,
-            tipoCuenta: 'administrador'
-          })
+          body: JSON.stringify({ correo, contrasena, tipoCuenta: 'administrador' }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error de autenticación');
+
         tokenInput.value = data.token;
-        showFeedback('success', `Sesión administrativa iniciada: ${data.user.nombre} (${data.user.rol})`);
+        localStorage.setItem('vincloud_token', data.token);
+        localStorage.setItem('vincloud_last_email', data.user.correo);
+
+        document.getElementById('activeAdminName').textContent = `${data.user.nombre} (${data.user.rol})`;
+        document.getElementById('activeAdminEmail').textContent = `ID #${data.user.id} · ${data.user.correo}`;
+
+        showFeedback('success', `✅ Sesión de Administrador activa en PostgreSQL: ${data.user.nombre}`);
         await loadAllAdminData();
       } catch (err) {
-        showFeedback('error', err.message);
+        showFeedback('error', `❌ ${err.message}`);
       }
-    });
+    }
 
-    document.getElementById('btnReloadAll').addEventListener('click', loadAllAdminData);
+    async function registerOrLoginAdmin() {
+      try {
+        const nombre = document.getElementById('adminName').value.trim() || 'Administrador VinCloud';
+        const correo = document.getElementById('adminEmail').value.trim();
+        const contrasena = document.getElementById('adminPass').value;
+
+        const res = await fetch(`${API_BASE}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombre, correo, contrasena, tipoCuenta: 'Administrador' }),
+        });
+        const data = await res.json();
+
+        if (res.status === 409) {
+          showFeedback('info', 'La cuenta de Administrador ya existe en PostgreSQL. Iniciando sesión automáticamente...');
+          await loginAdmin();
+          return;
+        }
+
+        if (!res.ok) throw new Error(data.error || 'No se pudo registrar el Administrador.');
+
+        tokenInput.value = data.token;
+        localStorage.setItem('vincloud_token', data.token);
+        localStorage.setItem('vincloud_last_email', data.user.correo);
+        if (data.verificationToken) {
+          localStorage.setItem('vincloud_last_verification_token', data.verificationToken);
+        }
+
+        document.getElementById('activeAdminName').textContent = `${data.user.nombre} (${data.user.rol})`;
+        document.getElementById('activeAdminEmail').textContent = `ID #${data.user.id} · ${data.user.correo}`;
+
+        showFeedback('success', `✅ Cuenta de Administrador creada en PostgreSQL e iniciada: ${data.user.nombre}`);
+        await loadAllAdminData();
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    }
 
     async function loadAllAdminData() {
-      if (!tokenInput.value.trim()) {
-        return showFeedback('error', 'Ingresa un token o inicia sesión como Administrador.');
+      await checkDatabaseStatus();
+      const token = tokenInput.value.trim();
+      if (!token) {
+        return showFeedback('info', 'Haz clic en "Crear / Asegurar Admin en BD (1 Clic)" o "Iniciar Sesión Admin" para cargar los datos de PostgreSQL.');
       }
-      await Promise.all([loadReport(), loadPlans(), loadUsers()]);
+
+      try {
+        localStorage.setItem('vincloud_token', token);
+        const meRes = await fetch(`${API_BASE}/auth/me`, { headers: authHeaders() });
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          document.getElementById('activeAdminName').textContent = `${meData.user.nombre} (${meData.user.rol})`;
+          document.getElementById('activeAdminEmail').textContent = `ID #${meData.user.id} · ${meData.user.correo}`;
+        }
+
+        await Promise.all([loadReport(), loadPlans(), loadUserPlans(), loadUsers()]);
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
     }
 
     async function loadReport() {
@@ -436,10 +671,14 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al cargar reporte');
       const r = data.report;
-      document.getElementById('repUsuarios').textContent = `${r.usuariosActivos} (${r.usuariosVerificados} verif.)`;
-      document.getElementById('repConsumido').textContent = `${formatBytes(r.espacioTotalConsumido)} / ${formatBytes(r.espacioTotalDisponible)}`;
+      document.getElementById('repUsuarios').textContent = `${r.usuariosActivos} cuenta(s)`;
+      document.getElementById('repUsuariosSub').textContent = `Correos verificados: ${r.usuariosVerificados}`;
+      document.getElementById('repConsumido').textContent = formatBytes(r.espacioTotalConsumido);
+      document.getElementById('repDisponibleSub').textContent = `Cuota total asignada: ${formatBytes(r.espacioTotalDisponible)}`;
       document.getElementById('repIngresos').textContent = `Q ${Number(r.ingresosSimulados).toFixed(2)}`;
+      document.getElementById('repSuscripcionesSub').textContent = `Suscripciones activas: ${r.suscripcionesActivas}`;
       document.getElementById('repRecursos').textContent = `${r.totalArchivos} arch. / ${r.totalCarpetas} carp.`;
+      document.getElementById('repFechaSub').textContent = `Generado: ${String(r.fechaGeneracion || '').slice(0, 10)}`;
     }
 
     async function loadPlans() {
@@ -451,17 +690,44 @@
       data.plans.forEach((p) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${p.id}</td>
-          <td><strong>${p.nombre}</strong><br><small>${p.descripcion || ''}</small></td>
+          <td>#${p.id}</td>
+          <td><strong>${p.nombre}</strong><br><small style="color:#64748B;">${p.descripcion || 'Sin descripción'}</small></td>
           <td>Q ${Number(p.precio).toFixed(2)}</td>
           <td>${formatBytes(p.capacidadAlmacenamiento)}</td>
           <td>${p.vigenciaDias} días</td>
           <td>${p.suscripcionesActivas ?? 0}</td>
           <td><span class="pill ${p.activo ? 'pill-active' : 'pill-inactive'}">${p.activo ? 'ACTIVO' : 'INACTIVO'}</span></td>
-          <td>
+          <td class="actions-row">
             <button class="btn btn-outline btn-sm" onclick="togglePlan(${p.id}, ${!p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
             <button class="btn btn-outline btn-sm" onclick="editPlanPrice(${p.id}, ${p.precio})">Precio</button>
+            <button class="btn btn-outline btn-sm" onclick="editPlanCapacity(${p.id}, ${Math.round(p.capacidadAlmacenamiento / (1024 ** 3))})">Capacidad GB</button>
           </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function loadUserPlans() {
+      const res = await fetch(`${API_BASE}/admin/user-plans`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al cargar planes de usuarios');
+      const tbody = document.getElementById('userPlansTableBody');
+      tbody.innerHTML = '';
+      (data.userPlans || []).forEach((item) => {
+        const p = item.plan;
+        const vigenciaTxt = p.fechaRenovacion
+          ? `Vence ${String(p.fechaRenovacion).slice(0, 10)} (${p.diasRestantes}d)`
+          : 'Permanente (Base 5 GB)';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>#${item.usuarioId}</td>
+          <td><strong>${item.nombre}</strong><br><small style="color:#64748B;">${item.correo}</small></td>
+          <td><span class="pill ${item.rol === 'Administrador' ? 'pill-admin' : 'pill-user'}">${item.rol}</span></td>
+          <td><strong>${p.nombre}</strong></td>
+          <td>Q ${Number(p.precio).toFixed(2)}</td>
+          <td><span class="pill pill-active">${String(p.estado).toUpperCase()}</span></td>
+          <td>${vigenciaTxt}</td>
+          <td>${formatBytes(item.espacioConsumido)} / ${formatBytes(item.espacioDisponible)}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -474,18 +740,22 @@
       const tbody = document.getElementById('usersTableBody');
       tbody.innerHTML = '';
       data.users.forEach((u) => {
-        const planText = u.suscripcionActiva ? `${u.suscripcionActiva.planNombre} (${u.suscripcionActiva.diasRestantes}d)` : 'Gratuito (5 GB)';
+        const planText = u.suscripcionActiva
+          ? `${u.suscripcionActiva.planNombre} (${u.suscripcionActiva.diasRestantes}d)`
+          : 'Gratuito (5 GB)';
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${u.id}</td>
-          <td><strong>${u.nombre}</strong><br><small>${u.correo}</small></td>
+          <td>#${u.id}</td>
+          <td><strong>${u.nombre}</strong><br><small style="color:#64748B;">${u.correo}</small></td>
           <td><span class="pill ${u.rol === 'Administrador' ? 'pill-admin' : 'pill-user'}">${u.rol}</span></td>
           <td>${planText}</td>
           <td>${formatBytes(u.espacioConsumido)} / ${formatBytes(u.espacioDisponible)}</td>
-          <td>${u.correoVerificado ? '✅ Sí' : '❌ No'}</td>
-          <td>
-            <button class="btn btn-outline btn-sm" onclick="changeUserQuota(${u.id})">Cuota</button>
-            <button class="btn btn-outline btn-sm" onclick="toggleUserRole(${u.id}, '${u.rol}')">Rol</button>
+          <td>${u.totalArchivos ?? 0} arch. / ${u.totalCarpetas ?? 0} carp.</td>
+          <td>${u.correoVerificado ? '✅ Verificado' : '⏳ Pendiente'}</td>
+          <td class="actions-row">
+            <button class="btn btn-outline btn-sm" onclick="changeUserQuota(${u.id})">Cuota GB</button>
+            <button class="btn btn-outline btn-sm" onclick="toggleUserRole(${u.id}, '${u.rol}')">Cambiar Rol</button>
+            <button class="btn btn-outline btn-sm" onclick="toggleUserVerified(${u.id}, ${!u.correoVerificado})">${u.correoVerificado ? 'Desverificar' : 'Verificar'}</button>
             <button class="btn btn-danger btn-sm" onclick="removeUser(${u.id})">Eliminar</button>
           </td>
         `;
@@ -504,16 +774,41 @@
             descripcion: document.getElementById('planDesc').value.trim(),
             precio: Number(document.getElementById('planPrecio').value),
             capacidadGb: Number(document.getElementById('planGb').value),
-            vigenciaDias: Number(document.getElementById('planVigencia').value)
-          })
+            vigenciaDias: Number(document.getElementById('planVigencia').value),
+          }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'No se pudo crear el plan');
         e.target.reset();
-        showFeedback('success', data.message);
+        document.getElementById('planVigencia').value = '30';
+        showFeedback('success', `✅ ${data.message}`);
         await loadAllAdminData();
       } catch (err) {
-        showFeedback('error', err.message);
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    });
+
+    document.getElementById('quickClientForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const nombre = document.getElementById('clientName').value.trim();
+        const correo = document.getElementById('clientEmail').value.trim();
+        const contrasena = document.getElementById('clientPass').value;
+
+        const res = await fetch(`${API_BASE}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombre, correo, contrasena, tipoCuenta: 'Usuario' }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'No se pudo crear el cliente');
+
+        document.getElementById('clientName').value = '';
+        document.getElementById('clientEmail').value = '';
+        showFeedback('success', `✅ Cliente "${data.user.nombre}" (${data.user.correo}) registrado en PostgreSQL.`);
+        await loadAllAdminData();
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
       }
     });
 
@@ -521,67 +816,102 @@
       const res = await fetch(`${API_BASE}/admin/plans/${id}`, {
         method: 'PATCH',
         headers: authHeaders(),
-        body: JSON.stringify({ activo })
+        body: JSON.stringify({ activo }),
       });
       const data = await res.json();
-      if (!res.ok) return showFeedback('error', data.error);
-      showFeedback('success', data.message);
-      await loadPlans();
+      if (!res.ok) return showFeedback('error', `❌ ${data.error}`);
+      showFeedback('success', `✅ ${data.message}`);
+      await loadAllAdminData();
     };
 
     window.editPlanPrice = async (id, currentPrice) => {
-      const val = prompt('Nuevo precio en Quetzales (Q):', currentPrice);
+      const val = prompt('Nuevo precio mensual en Quetzales (Q):', currentPrice);
       if (val === null) return;
       const res = await fetch(`${API_BASE}/admin/plans/${id}`, {
         method: 'PATCH',
         headers: authHeaders(),
-        body: JSON.stringify({ precio: Number(val) })
+        body: JSON.stringify({ precio: Number(val) }),
       });
       const data = await res.json();
-      if (!res.ok) return showFeedback('error', data.error);
-      showFeedback('success', data.message);
-      await loadPlans();
+      if (!res.ok) return showFeedback('error', `❌ ${data.error}`);
+      showFeedback('success', `✅ ${data.message}`);
+      await loadAllAdminData();
+    };
+
+    window.editPlanCapacity = async (id, currentGb) => {
+      const val = prompt('Nueva capacidad del plan en GB:', currentGb);
+      if (val === null) return;
+      const res = await fetch(`${API_BASE}/admin/plans/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ capacidadGb: Number(val) }),
+      });
+      const data = await res.json();
+      if (!res.ok) return showFeedback('error', `❌ ${data.error}`);
+      showFeedback('success', `✅ ${data.message}`);
+      await loadAllAdminData();
     };
 
     window.changeUserQuota = async (id) => {
-      const gb = prompt('Nueva cuota de espacio disponible en GB (ej. 10, 50, 200):', '10');
+      const gb = prompt('Nueva cuota de espacio disponible en GB (ej. 10, 50, 200, 1024):', '50');
       if (gb === null) return;
       const res = await fetch(`${API_BASE}/admin/users/${id}`, {
         method: 'PATCH',
         headers: authHeaders(),
-        body: JSON.stringify({ cuotaGb: Number(gb) })
+        body: JSON.stringify({ cuotaGb: Number(gb) }),
       });
       const data = await res.json();
-      if (!res.ok) return showFeedback('error', data.error);
-      showFeedback('success', data.message);
+      if (!res.ok) return showFeedback('error', `❌ ${data.error}`);
+      showFeedback('success', `✅ ${data.message}`);
       await loadAllAdminData();
     };
 
     window.toggleUserRole = async (id, currentRol) => {
       const nuevoRol = currentRol === 'Administrador' ? 'Usuario' : 'Administrador';
-      if (!confirm(`¿Cambiar el rol del usuario #${id} a ${nuevoRol}?`)) return;
+      if (!confirm(`¿Cambiar el rol del usuario #${id} a ${nuevoRol} en PostgreSQL?`)) return;
       const res = await fetch(`${API_BASE}/admin/users/${id}`, {
         method: 'PATCH',
         headers: authHeaders(),
-        body: JSON.stringify({ rol: nuevoRol })
+        body: JSON.stringify({ rol: nuevoRol }),
       });
       const data = await res.json();
-      if (!res.ok) return showFeedback('error', data.error);
-      showFeedback('success', data.message);
-      await loadUsers();
+      if (!res.ok) return showFeedback('error', `❌ ${data.error}`);
+      showFeedback('success', `✅ ${data.message}`);
+      await loadAllAdminData();
+    };
+
+    window.toggleUserVerified = async (id, correoVerificado) => {
+      const res = await fetch(`${API_BASE}/admin/users/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ correoVerificado }),
+      });
+      const data = await res.json();
+      if (!res.ok) return showFeedback('error', `❌ ${data.error}`);
+      showFeedback('success', `✅ Estado de verificación actualizado para el usuario #${id}.`);
+      await loadAllAdminData();
     };
 
     window.removeUser = async (id) => {
-      if (!confirm(`¿Eliminar permanentemente la cuenta del usuario #${id} y todos sus archivos?`)) return;
+      if (!confirm(`¿Eliminar permanentemente de PostgreSQL la cuenta del usuario #${id} y todos sus archivos?`)) return;
       const res = await fetch(`${API_BASE}/admin/users/${id}`, {
         method: 'DELETE',
-        headers: authHeaders()
+        headers: authHeaders(),
       });
       const data = await res.json();
-      if (!res.ok) return showFeedback('error', data.error);
-      showFeedback('success', data.message);
+      if (!res.ok) return showFeedback('error', `❌ ${data.error}`);
+      showFeedback('success', `✅ ${data.message}`);
       await loadAllAdminData();
     };
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      await checkDatabaseStatus();
+      const savedToken = localStorage.getItem('vincloud_token');
+      if (savedToken) {
+        tokenInput.value = savedToken;
+        await loadAllAdminData();
+      }
+    });
   </script>
 </body>
 </html>
