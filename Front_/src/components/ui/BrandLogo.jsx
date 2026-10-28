@@ -3,8 +3,9 @@ import { colors } from '../../styles/theme';
 
 /**
  * Logo de VinCloud. `compact` es la versión pequeña del menú lateral.
+ * `light` muestra el texto en blanco para fondos oscuros.
  */
-function BrandLogo({ compact = false }) {
+function BrandLogo({ compact = false, light = false }) {
   const box = compact ? 32 : 42;
 
   return (
@@ -24,10 +25,10 @@ function BrandLogo({ compact = false }) {
         <Icon name="cloud" size={compact ? 18 : 22} fill="#fff" />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <span style={{ fontSize: compact ? 16 : 22, fontWeight: 800, color: colors.primaryDark, lineHeight: compact ? 1 : 'normal' }}>
+        <span style={{ fontSize: compact ? 16 : 22, fontWeight: 800, color: light ? '#FFFFFF' : colors.primaryDark, lineHeight: compact ? 1 : 'normal' }}>
           VinCloud
         </span>
-        {compact && <span style={{ fontSize: 11, color: colors.subtle }}>Almacenamiento</span>}
+        {compact && <span style={{ fontSize: 11, color: light ? 'rgba(255,255,255,0.7)' : colors.subtle }}>Almacenamiento</span>}
       </div>
     </div>
   );

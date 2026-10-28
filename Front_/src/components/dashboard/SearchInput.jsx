@@ -1,7 +1,7 @@
 import Icon from '../ui/Icon';
 import { colors } from '../../styles/theme';
 
-function SearchInput({ placeholder, value = '', onChange }) {
+function SearchInput({ placeholder, value, onChange }) {
   return (
     <div style={{ position: 'relative', width: 300 }}>
       <Icon name="search" size={16} color={colors.subtle} style={{ position: 'absolute', left: 12, top: 10 }} />
@@ -10,7 +10,7 @@ function SearchInput({ placeholder, value = '', onChange }) {
         aria-label={placeholder}
         placeholder={placeholder}
         value={value}
-        onChange={(e) => onChange && onChange(e.target.value)}
+        onChange={onChange ? (e) => onChange(e.target.value) : undefined}
         style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.surfaceAlt, fontSize: 14, outline: 'none' }}
       />
     </div>

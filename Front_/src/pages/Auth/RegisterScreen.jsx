@@ -15,7 +15,7 @@ function validate({ name, email, password, confirm }) {
   return '';
 }
 
-function RegisterScreen({ onRegister, onGoToLogin }) {
+function RegisterScreen({ onRegistered, onGoToLogin, onGoToHome }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +31,8 @@ function RegisterScreen({ onRegister, onGoToLogin }) {
 
     setLoading(true);
     try {
-      onRegister(await register(name, email, password));
+      const createdUser = await register(name, email, password);
+      onRegistered(createdUser?.correo || email);
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -46,6 +47,7 @@ function RegisterScreen({ onRegister, onGoToLogin }) {
       maxWidth={600}
       legalText="Al crear una cuenta"
       footer={<>¿Ya tienes una cuenta? <TextButton onClick={onGoToLogin}>Iniciar sesión</TextButton></>}
+      onGoToHome={onGoToHome}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <FieldInput label="Nombre completo" icon="person" value={name} onChange={setName} placeholder="Tu nombre y apellido" autoComplete="name" />

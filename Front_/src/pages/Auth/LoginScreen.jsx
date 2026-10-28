@@ -6,7 +6,7 @@ import SubmitButton from '../../components/ui/SubmitButton';
 import TextButton from '../../components/ui/TextButton';
 import { login } from '../../services/authService';
 
-function LoginScreen({ onLogin, onGoToRegister, onGoToForgotPassword }) {
+function LoginScreen({ onLogin, onGoToRegister, onGoToForgotPassword, onGoToHome }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -36,6 +36,7 @@ function LoginScreen({ onLogin, onGoToRegister, onGoToForgotPassword }) {
       subtitle="Continúa donde lo dejaste. Tus archivos están listos para ti."
       legalText="Al continuar"
       footer={<>¿Aún no tienes una cuenta? <TextButton onClick={onGoToRegister}>Crear cuenta</TextButton></>}
+      onGoToHome={onGoToHome}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <FieldInput label="Correo electrónico" icon="mail" type="email" value={email} onChange={setEmail} placeholder="nombre@empresa.com" autoComplete="email" />

@@ -3,8 +3,7 @@ import RecientesView from './views/RecientesView';
 import PapeleraView from './views/PapeleraView';
 import SuscripcionesView from './views/SuscripcionesView';
 
-// Registro de secciones del dashboard. Agregar una vista nueva = agregar una entrada aquí;
-// el menú lateral y MainContent no necesitan cambios.
+// Registro de secciones del dashboard del cliente.
 export const NAV_ITEMS = [
   { id: 'archivos', label: 'Mis Archivos', icon: 'folder', View: MisArchivosView },
   { id: 'recientes', label: 'Recientes', icon: 'clock', View: RecientesView },

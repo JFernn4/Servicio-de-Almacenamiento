@@ -14,6 +14,17 @@ export const colors = {
   surfaceAlt: '#F8F9FA',
   card: '#FCFAFA',
   danger: '#EF4444',
+  success: '#10B981',
+  successDark: '#059669',
+  successSoft: '#ECFDF5',
+  info: '#2563EB',
+  infoSoft: '#EFF6FF',
+  warning: '#F59E0B',
+  warningLight: '#FBBF24',
+  warningDark: '#D97706',
+  warningSoft: '#FFFBEB',
+  bgDark: '#1F050E',
+  footerDark: '#0F0307',
 };
 
 export const sectionLabelStyle = {

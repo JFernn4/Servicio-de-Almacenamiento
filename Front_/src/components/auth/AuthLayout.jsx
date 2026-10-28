@@ -7,7 +7,7 @@ import { colors } from '../../styles/theme';
  * tarjeta con logo, encabezado, contenido (formulario) y pie.
  * `eyebrow`, `footer` y `legalText` son opcionales.
  */
-function AuthLayout({ eyebrow, title, subtitle, maxWidth = 540, footer, legalText, children }) {
+function AuthLayout({ eyebrow, title, subtitle, maxWidth = 540, footer, legalText, onGoToHome, children }) {
   return (
     <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', padding: 20 }}>
       <AuthBackground />
@@ -26,8 +26,40 @@ function AuthLayout({ eyebrow, title, subtitle, maxWidth = 540, footer, legalTex
           zIndex: 1,
         }}
       >
-        <div style={{ marginBottom: 32 }}>
-          <BrandLogo />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+          <div style={{ cursor: onGoToHome ? 'pointer' : 'default' }} onClick={onGoToHome}>
+            <BrandLogo />
+          </div>
+          {onGoToHome && (
+            <button
+              type="button"
+              onClick={onGoToHome}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: colors.muted,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 10px',
+                borderRadius: 8,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = colors.primaryDark;
+                e.currentTarget.style.background = colors.primarySoft;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = colors.muted;
+                e.currentTarget.style.background = 'none';
+              }}
+            >
+              ← Volver al inicio
+            </button>
+          )}
         </div>
 
         {eyebrow && (
