@@ -96,6 +96,12 @@ function App() {
     return <SharedFileScreen token={initial.token} onGoToLogin={() => navigate('login')} />;
   }
 
+  const isUserAdmin =
+    user?.rol?.toLowerCase() === 'admin' || user?.rol?.toLowerCase() === 'administrador';
+  if (currentScreen === 'admin' || isUserAdmin) {
+    return <AdminView user={user} onLogout={handleLogout} />;
+  }
+
   if (user) {
     return (
       <DashboardScreen
