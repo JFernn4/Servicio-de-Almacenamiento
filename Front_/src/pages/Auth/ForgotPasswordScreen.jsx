@@ -8,7 +8,7 @@ import TextButton from '../../components/ui/TextButton';
 import { colors } from '../../styles/theme';
 import { forgotPassword } from '../../services/authService';
 
-function ForgotPasswordScreen({ onGoToLogin }) {
+function ForgotPasswordScreen({ onGoToLogin, onGoToHome }) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -39,6 +39,7 @@ function ForgotPasswordScreen({ onGoToLogin }) {
       title="Recuperar contraseña"
       subtitle="Ingresa el correo asociado a tu cuenta para recibir un enlace de recuperación."
       footer={<>¿Recordaste tu contraseña? <TextButton onClick={onGoToLogin}>Inicia sesión</TextButton></>}
+      onGoToHome={onGoToHome}
     >
       {successMsg ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
