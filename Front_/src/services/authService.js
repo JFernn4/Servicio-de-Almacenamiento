@@ -1,6 +1,41 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const TOKEN_KEY = 'vincloud_token';
 const USER_KEY = 'vincloud_user';
+const ADMIN_USERS_STORAGE_KEY = 'vincloud_admin_users';
+const ADMIN_LOGS_STORAGE_KEY = 'vincloud_admin_logs';
+
+function recordRegisteredClientInAdmin(user, fallbackName, fallbackEmail) {
+  try {
+    const list = JSON.parse(localStorage.getItem(ADMIN_USERS_STORAGE_KEY) || '[]');
+    const correo = user?.correo || fallbackEmail;
+    if (!correo || list.some((item) => item.correo === correo)) return;
+
+    const entry = {
+      id: user?.id || `usr_${Date.now()}`,
+      nombre: user?.nombre || fallbackName,
+      correo,
+      rol: user?.rol || 'usuario',
+      plan: 'Básico',
+      usadoGb: 0,
+      limiteGb: 15,
+      estado: user?.correoVerificado ? 'Activo' : 'Pendiente',
+      verificado: Boolean(user?.correoVerificado),
+    };
+    localStorage.setItem(ADMIN_USERS_STORAGE_KEY, JSON.stringify([entry, ...list]));
+
+    const logs = JSON.parse(localStorage.getItem(ADMIN_LOGS_STORAGE_KEY) || '[]');
+    const newLog = {
+      id: `log_${Date.now()}`,
+      time: 'Reciente',
+      action: `Nuevo cliente registrado en la web: ${correo}`,
+      type: 'info',
+      actor: 'Registro Web',
+    };
+    localStorage.setItem(ADMIN_LOGS_STORAGE_KEY, JSON.stringify([newLog, ...logs]));
+  } catch {
+    // Ignorar errores de almacenamiento local
+  }
+}
 
 /**
  * Llamada a la API. Lanza Error con el mensaje del backend; `status` queda
@@ -43,7 +78,7 @@ export async function login(correo, contrasena) {
 
 export async function register(nombre, correo, contrasena) {
   const data = await request('/auth/register', { method: 'POST', body: { nombre, correo, contrasena } });
-  saveSession(data);
+  recordRegisteredClientInAdmin(data.user, nombre, correo);
   return data.user;
 }
 
