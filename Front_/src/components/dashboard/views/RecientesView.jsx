@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import Alert from '../../ui/Alert';
+import ConfirmDialog from '../../ui/ConfirmDialog';
+import { useConfirm } from '../../../hooks/useConfirm';
 import ViewHeader from '../ViewHeader';
 import SearchInput from '../SearchInput';
 import EmptyState from '../EmptyState';
@@ -12,6 +14,7 @@ function RecientesView({ onRefreshUser }) {
   const [files, setFiles] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [feedback, setFeedback] = useState(null);
+  const { askConfirm, confirmDialogProps } = useConfirm();
 
   async function loadRecent() {
     try {
@@ -84,7 +87,12 @@ function RecientesView({ onRefreshUser }) {
   }
 
   async function handleDelete(file) {
-    if (!window.confirm(`¿Eliminar el archivo "${file.name}"?`)) return;
+    const accepted = await askConfirm({
+      title: 'Eliminar archivo',
+      message: `¿Eliminar el archivo "${file.name}"?`,
+      confirmLabel: 'Eliminar archivo',
+    });
+    if (!accepted) return;
 
     try {
       await deleteFile(file.id);
@@ -133,6 +141,8 @@ function RecientesView({ onRefreshUser }) {
           />
         )}
       </div>
+
+      {confirmDialogProps && <ConfirmDialog {...confirmDialogProps} />}
     </div>
   );
 }

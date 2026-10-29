@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Icon from '../../ui/Icon';
 import Alert from '../../ui/Alert';
 import ConfirmDialog from '../../ui/ConfirmDialog';
+import { useConfirm } from '../../../hooks/useConfirm';
 import ViewHeader from '../ViewHeader';
 import SearchInput from '../SearchInput';
 import EmptyState from '../EmptyState';
@@ -75,23 +76,11 @@ function MisArchivosView({ onRefreshUser }) {
   const [folderError, setFolderError] = useState('');
 
   // Diálogo de confirmación propio (en lugar de window.confirm)
-  const [confirmRequest, setConfirmRequest] = useState(null); // { title, message, confirmLabel, resolve }
+  const { askConfirm, confirmDialogProps } = useConfirm();
   // Archivos arrastrados sobre el recuadro de "espacio vacío"
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
 
   const fileInputRef = useRef(null);
-
-  /**
-   * Muestra el diálogo de confirmación y devuelve una promesa: true si el usuario acepta.
-   */
-  function askConfirm({ title, message, confirmLabel }) {
-    return new Promise((resolve) => setConfirmRequest({ title, message, confirmLabel, resolve }));
-  }
-
-  function closeConfirm(accepted) {
-    confirmRequest?.resolve(accepted);
-    setConfirmRequest(null);
-  }
 
   function applyDirectoryData(data) {
     const colorMap = readFolderColors();
@@ -579,15 +568,7 @@ function MisArchivosView({ onRefreshUser }) {
         )}
       </div>
 
-      {confirmRequest && (
-        <ConfirmDialog
-          title={confirmRequest.title}
-          message={confirmRequest.message}
-          confirmLabel={confirmRequest.confirmLabel}
-          onConfirm={() => closeConfirm(true)}
-          onCancel={() => closeConfirm(false)}
-        />
-      )}
+      {confirmDialogProps && <ConfirmDialog {...confirmDialogProps} />}
 
       {/* Modal para crear Nueva Carpeta */}
       {isModalOpen && (

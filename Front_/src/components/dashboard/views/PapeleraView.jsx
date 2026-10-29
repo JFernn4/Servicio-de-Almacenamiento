@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import Icon from '../../ui/Icon';
 import Alert from '../../ui/Alert';
+import ConfirmDialog from '../../ui/ConfirmDialog';
+import { useConfirm } from '../../../hooks/useConfirm';
 import ViewHeader from '../ViewHeader';
 import EmptyState from '../EmptyState';
 import FileTable from '../FileTable';
@@ -17,6 +19,7 @@ function PapeleraView({ onRefreshUser }) {
   const [files, setFiles] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const [emptying, setEmptying] = useState(false);
+  const { askConfirm, confirmDialogProps } = useConfirm();
 
   async function loadTrash() {
     try {
@@ -50,7 +53,12 @@ function PapeleraView({ onRefreshUser }) {
   }
 
   async function handlePermanentDelete(file) {
-    if (!window.confirm(`¿Eliminar permanentemente "${file.name}"? Esta acción no se puede deshacer.`)) return;
+    const accepted = await askConfirm({
+      title: 'Eliminar permanentemente',
+      message: `¿Eliminar permanentemente "${file.name}"? Esta acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar permanentemente',
+    });
+    if (!accepted) return;
 
     setFeedback(null);
     try {
@@ -65,7 +73,12 @@ function PapeleraView({ onRefreshUser }) {
 
   async function handleEmptyTrash() {
     if (files.length === 0) return;
-    if (!window.confirm('¿Vaciar toda la papelera de forma permanente? Esta acción liberará tu espacio y no se puede deshacer.')) return;
+    const accepted = await askConfirm({
+      title: 'Vaciar papelera',
+      message: '¿Vaciar toda la papelera de forma permanente? Esta acción liberará tu espacio y no se puede deshacer.',
+      confirmLabel: 'Vaciar papelera',
+    });
+    if (!accepted) return;
 
     setEmptying(true);
     setFeedback(null);
@@ -137,6 +150,8 @@ function PapeleraView({ onRefreshUser }) {
           </>
         )}
       </div>
+
+      {confirmDialogProps && <ConfirmDialog {...confirmDialogProps} />}
     </div>
   );
 }
