@@ -23,6 +23,15 @@ const DEMO_ADMIN_USER = {
   limiteGb: 15,
 };
 
+const DEMO_CLIENT_USER = {
+  id: 'client_demo',
+  nombre: 'Usuario VinCloud',
+  correo: 'usuario@vincloud.app',
+  rol: 'Usuario',
+  usadoGb: 0,
+  limiteGb: 15,
+};
+
 /**
  * Pantalla inicial según la URL. Se lee una sola vez, al cargar la aplicación.
  */
@@ -33,7 +42,14 @@ function readInitialScreen() {
   if (EMAIL_LINK_SCREENS.includes(mode) && token) {
     return { screen: mode, token };
   }
-  if (mode === 'login' || mode === 'register' || mode === 'forgot-password' || mode === 'check-email' || mode === 'admin') {
+  if (
+    mode === 'login' ||
+    mode === 'register' ||
+    mode === 'forgot-password' ||
+    mode === 'check-email' ||
+    mode === 'admin' ||
+    mode === 'dashboard'
+  ) {
     return { screen: mode, token: '' };
   }
   return { screen: 'landing', token: '' };
@@ -108,8 +124,8 @@ function App() {
     return <AdminView user={user || DEMO_ADMIN_USER} onLogout={handleLogout} />;
   }
 
-  if (user) {
-    return <DashboardScreen user={user} onLogout={handleLogout} />;
+  if (currentScreen === 'dashboard' || user) {
+    return <DashboardScreen user={user || DEMO_CLIENT_USER} onLogout={handleLogout} />;
   }
 
   if (currentScreen === 'check-email') {
