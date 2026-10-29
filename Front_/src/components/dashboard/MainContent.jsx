@@ -9,7 +9,7 @@ function MainContent({ activeTab, onRefreshUser }) {
   }
 
   return (
-    <div style={{ padding: 48, textAlign: 'center', color: colors.subtle }}>
+    <div style={{ flex: 1, padding: 48, textAlign: 'center', color: colors.subtle }}>
       <h2>Vista en construcción</h2>
       <p>Has seleccionado: {item?.label ?? activeTab}</p>
     </div>
