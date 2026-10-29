@@ -1,5 +1,4 @@
 import fs from 'fs/promises';
-import fsSync from 'fs';
 import path from 'path';
 import * as fileRepository from '../repositories/fileRepository.js';
 import * as folderRepository from '../repositories/folderRepository.js';
@@ -8,18 +7,27 @@ import { signPurposeToken, verifyPurposeToken } from './tokenService.js';
 import { sendShareInvitationEmail } from './emailService.js';
 import { resolveUserPlanDecorator } from './subscriptionService.js';
 import { config } from '../config/env.js';
+import { fileStorage } from '../patterns/storageBridge/index.js';
+import { effectiveMaxFileSize, fileTooLargeMessage } from '../utils/uploadLimits.js';
 import { FORBIDDEN_FILE_EXTENSIONS, TOKEN_PURPOSES, FILE_SHARE_EXPIRES_IN } from '../config/constants.js';
 import { HttpError } from '../utils/httpError.js';
 
-const uploadDir = config.storage.uploadDir;
-
 /**
- * Obtiene la ruta física absoluta de un archivo en el servidor a partir de sus metadatos.
- * (Encapsulado en una única función para facilitar el reemplazo futuro de Multer / almacenamiento local).
+ * Entrega el contenido de un archivo para descarga o visualización.
+ * El "dónde" (disco o Supabase) lo resuelve el patrón Bridge (fileStorage).
  */
-export function getPhysicalFilePath(archivo) {
-  const extension = path.extname(archivo.nombre || '').toLowerCase();
-  return path.join(uploadDir, `${archivo.id}${extension}`);
+async function openStoredFile(archivo) {
+  const contenido = await fileStorage.open(archivo);
+  if (!contenido) {
+    throw new HttpError(404, 'El contenido del archivo no se encuentra en el almacenamiento.');
+  }
+  return {
+    stream: contenido.stream,
+    size: contenido.size ?? Number(archivo.tamano),
+    nombre: archivo.nombre,
+    tipo: archivo.tipo,
+    tamano: archivo.tamano,
+  };
 }
 
 /**
@@ -52,13 +60,13 @@ export async function uploadFile({ usuarioId, carpetaId = null, file, files = []
     );
   }
 
+  const maxFileSize = effectiveMaxFileSize(politicaMulter);
   for (const item of fileList) {
-    if (item.size > politicaMulter.maxFileSizeBytes) {
+    if (item.size > maxFileSize) {
       await cleanupTempFiles();
-      const maxMb = Number((politicaMulter.maxFileSizeBytes / (1024 * 1024)).toFixed(0));
       throw new HttpError(
         400,
-        `El archivo "${item.originalname}" excede el límite de ${maxMb} MB permitido por tu plan (${activeDecorator.constructor.name}).`
+        fileTooLargeMessage({ politica: politicaMulter, planName: activeDecorator.constructor.name, fileName: item.originalname })
       );
     }
   }
@@ -93,7 +101,7 @@ export async function uploadFile({ usuarioId, carpetaId = null, file, files = []
   }
 
   const archivosCreados = [];
-  const rutasMovidas = [];
+  const archivosGuardados = [];
 
   try {
     for (const item of fileList) {
@@ -107,10 +115,9 @@ export async function uploadFile({ usuarioId, carpetaId = null, file, files = []
       });
       archivosCreados.push(nuevoArchivo);
 
-      // 5. Mover el archivo físico al nombre definitivo con su ID único
-      const targetPath = getPhysicalFilePath(nuevoArchivo);
-      await fs.rename(item.path, targetPath);
-      rutasMovidas.push(targetPath);
+      // 5. Guardar el contenido en el almacenamiento configurado (patrón Bridge)
+      await fileStorage.store(nuevoArchivo, item.path);
+      archivosGuardados.push(nuevoArchivo);
     }
 
     // 6. Incrementar el espacio consumido del usuario
@@ -122,9 +129,9 @@ export async function uploadFile({ usuarioId, carpetaId = null, file, files = []
       planAplicado: activeDecorator.toJSON(),
     };
   } catch (error) {
-    // Limpieza preventiva en disco y BD si ocurrió algún fallo intermedio
+    // Limpieza preventiva en el almacenamiento y la BD si ocurrió algún fallo intermedio
     await cleanupTempFiles();
-    await Promise.all(rutasMovidas.map((p) => fs.unlink(p).catch(() => {})));
+    await fileStorage.removeMany(archivosGuardados);
     await Promise.all(
       archivosCreados.map((a) => fileRepository.deleteFile(a.id, usuarioId).catch(() => {}))
     );
@@ -141,17 +148,7 @@ export async function getFileForDownload(archivoId, usuarioId) {
     throw new HttpError(404, 'Archivo no encontrado o no tienes permisos para descargarlo.');
   }
 
-  const physicalPath = getPhysicalFilePath(archivo);
-  if (!fsSync.existsSync(physicalPath)) {
-    throw new HttpError(404, 'El archivo físico no se encuentra en el servidor.');
-  }
-
-  return {
-    physicalPath,
-    nombre: archivo.nombre,
-    tipo: archivo.tipo,
-    tamano: archivo.tamano,
-  };
+  return openStoredFile(archivo);
 }
 
 /**
@@ -192,9 +189,8 @@ export async function permanentDeleteFile(archivoId, usuarioId) {
   // 2. Decrementar el espacio consumido del usuario
   await userRepository.decrementConsumedSpace(usuarioId, archivo.tamano);
 
-  // 3. Eliminar el archivo físico en disco
-  const physicalPath = getPhysicalFilePath(archivo);
-  await fs.unlink(physicalPath).catch(() => {});
+  // 3. Eliminar el contenido del almacenamiento
+  await fileStorage.remove(archivo);
 
   return {
     id: archivo.id,
@@ -234,12 +230,7 @@ export async function emptyTrash(usuarioId) {
     await userRepository.decrementConsumedSpace(usuarioId, totalBytesLiberados);
   }
 
-  await Promise.all(
-    eliminados.map(async (arch) => {
-      const physicalPath = getPhysicalFilePath(arch);
-      await fs.unlink(physicalPath).catch(() => {});
-    })
-  );
+  await fileStorage.removeMany(eliminados);
 
   return {
     eliminadosCount: eliminados.length,
@@ -278,12 +269,8 @@ export async function renameFile(archivoId, usuarioId, nuevoNombre) {
     throw new HttpError(400, 'El nuevo nombre no puede exceder los 255 caracteres.');
   }
 
-  const oldPhysicalPath = getPhysicalFilePath(archivo);
-  const newPhysicalPath = path.join(uploadDir, `${archivo.id}${extFinal}`);
-
-  if (oldPhysicalPath !== newPhysicalPath && fsSync.existsSync(oldPhysicalPath)) {
-    await fs.rename(oldPhysicalPath, newPhysicalPath);
-  }
+  // Si cambia la extensión, cambia la clave del contenido en el almacenamiento
+  await fileStorage.changeExtension(archivo, extFinal);
 
   const archivoActualizado = await fileRepository.renameFile(archivoId, usuarioId, nuevoNombre ? nombreFinal : archivo.nombre);
   return archivoActualizado;
@@ -391,13 +378,8 @@ export async function deleteFolder(carpetaId, usuarioId) {
     await userRepository.decrementConsumedSpace(usuarioId, totalBytesLiberados);
   }
 
-  // 4. Eliminar del disco físico cada archivo que estaba en el árbol
-  await Promise.all(
-    archivosEnArbol.map(async (arch) => {
-      const physicalPath = getPhysicalFilePath(arch);
-      await fs.unlink(physicalPath).catch(() => {});
-    })
-  );
+  // 4. Eliminar del almacenamiento cada archivo que estaba en el árbol
+  await fileStorage.removeMany(archivosEnArbol);
 
   return { id: carpeta.id, nombre: carpeta.nombre, bytesLiberados: totalBytesLiberados };
 }
@@ -495,7 +477,7 @@ export async function getSharedFileInfo(token) {
 }
 
 /**
- * Obtiene la ruta física de un archivo compartido validando su token de invitación.
+ * Entrega el contenido de un archivo compartido validando su token de invitación.
  */
 export async function getSharedFileForDownload(token) {
   const payload = verifyPurposeToken(token, TOKEN_PURPOSES.FILE_SHARE);
@@ -508,15 +490,5 @@ export async function getSharedFileForDownload(token) {
     throw new HttpError(404, 'El archivo compartido ya no se encuentra disponible.');
   }
 
-  const physicalPath = getPhysicalFilePath(archivo);
-  if (!fsSync.existsSync(physicalPath)) {
-    throw new HttpError(404, 'El archivo físico no se encuentra en el servidor.');
-  }
-
-  return {
-    physicalPath,
-    nombre: archivo.nombre,
-    tipo: archivo.tipo,
-    tamano: archivo.tamano,
-  };
+  return openStoredFile(archivo);
 }
