@@ -4,8 +4,8 @@ import { StorageProvider } from './StorageProvider.js';
 
 /**
  * Patrón Bridge — IMPLEMENTADOR CONCRETO: Supabase Storage.
- * Usa la API REST de Supabase Storage con la clave service_role (solo en el backend,
- * nunca en el frontend). El bucket debe ser PRIVADO: los archivos se entregan siempre
+ * Usa la API REST de Supabase Storage con la clave secreta del proyecto (sb_secret_…
+ * o la service_role antigua). Solo en el backend, nunca en el frontend. El bucket debe ser PRIVADO: los archivos se entregan siempre
  * a través del backend, que valida la sesión o el enlace compartido.
  */
 export class SupabaseStorageProvider extends StorageProvider {
@@ -13,7 +13,17 @@ export class SupabaseStorageProvider extends StorageProvider {
     super();
     this.baseUrl = `${url.replace(/\/+$/, '')}/storage/v1`;
     this.bucket = bucket;
-    this.headers = { Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey };
+    this.headers = SupabaseStorageProvider.authHeaders(serviceRoleKey);
+  }
+
+  /**
+   * Cabeceras de autenticación según el tipo de clave:
+   *  - clave secreta nueva (sb_secret_…): no es un JWT; va solo en `apikey`
+   *  - clave service_role antigua (JWT eyJ…): en `apikey` y como `Authorization: Bearer`
+   */
+  static authHeaders(key) {
+    const isLegacyJwt = key.split('.').length === 3 && key.startsWith('eyJ');
+    return isLegacyJwt ? { apikey: key, Authorization: `Bearer ${key}` } : { apikey: key };
   }
 
   objectUrl(key, { authenticated = false } = {}) {

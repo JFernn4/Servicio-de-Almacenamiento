@@ -36,6 +36,7 @@ services:
         value: supabase
       - key: SUPABASE_URL
         sync: false
+      # Clave secreta sb_secret_... (o la service_role antigua), nunca la publishable
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: SUPABASE_BUCKET

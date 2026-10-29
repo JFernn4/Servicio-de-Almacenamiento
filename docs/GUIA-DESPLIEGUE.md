@@ -47,12 +47,14 @@ El frontend sigue mostrando los límites de cada plan (10 MB, 50 MB, 250 MB, 1 G
    - Restrict file size: **50 MB**
 
 ### 2.4 Copiar los datos de conexión
-7. **Project Settings → API**:
-   - **Project URL** → será `SUPABASE_URL`
-   - **service_role** (en *Project API keys*, "secret") → será `SUPABASE_SERVICE_ROLE_KEY`
+7. La **URL del proyecto**: en **Project Settings → API Keys** (o en el botón **Connect**), usen **Copy API URL**. Tiene la forma `https://xxxxxxxx.supabase.co` → será `SUPABASE_URL`.
+8. La **clave secreta**: en **Project Settings → API Keys**, sección **Secret keys**, revelen y copien la clave que empieza con `sb_secret_…` → será `SUPABASE_SERVICE_ROLE_KEY`.
+   - Si no hay ninguna, denle **Create new secret key**.
+   - También sirve la clave antigua `service_role` (pestaña **Legacy API Keys**, empieza con `eyJ…`). El backend acepta los dos tipos.
+   - **No** usen la *publishable key* (`sb_publishable_…`): es pública y no tiene permiso para guardar archivos en un bucket privado.
 
-   ⚠️ La `service_role` da acceso total al proyecto: va **solo** en las variables de Render, **nunca** en el frontend, en GitHub ni en un chat.
-8. Botón **Connect** (arriba) → pestaña **Session pooler** → copien la URI y reemplacen `[YOUR-PASSWORD]` por la contraseña del paso 1. Esa URI será `DATABASE_URL`.
+   ⚠️ La clave secreta da acceso total al proyecto: va **solo** en las variables de Render, **nunca** en el frontend, en GitHub ni en un chat.
+9. Botón **Connect** (arriba) → pestaña **Session pooler** → copien la URI y reemplacen `[YOUR-PASSWORD]` por la contraseña del paso 1. Esa URI será `DATABASE_URL`.
 
    ⚠️ Usen **Session pooler**, no *Direct connection*: la conexión directa solo funciona por IPv6, y Render gratis no tiene IPv6, así que el backend no podría conectarse.
 
@@ -87,8 +89,8 @@ El archivo `render.yaml` crea los dos servicios de una vez (es un *Blueprint*).
 | Variable | Servicio | Valor |
 |---|---|---|
 | `DATABASE_URL` | vincloud-api | URI del **Session pooler** de Supabase (paso 2.4) |
-| `SUPABASE_URL` | vincloud-api | Project URL de Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | vincloud-api | service_role de Supabase |
+| `SUPABASE_URL` | vincloud-api | URL del proyecto (**Copy API URL** en Supabase) |
+| `SUPABASE_SERVICE_ROLE_KEY` | vincloud-api | Clave secreta `sb_secret_…` de Supabase (no la *publishable*) |
 | `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | vincloud-api | Los de Brevo (paso 3) |
 | `CORS_ORIGIN` | vincloud-api | URL del frontend, por ejemplo `https://vincloud-web.onrender.com` |
 | `FRONTEND_URL` | vincloud-api | La misma URL del frontend |
@@ -134,7 +136,7 @@ Cierren sesión y vuelvan a entrar.
 | `/api/health` responde `database: disconnected` | `DATABASE_URL` mal copiada, o se usó *Direct connection* | Usar la URI del **Session pooler** con la contraseña correcta |
 | El frontend dice "No se pudo conectar con el servidor" | `VITE_API_URL` incorrecta, o el backend estaba dormido | Revisar que termine en `/api`, recompilar el frontend y esperar 1 minuto |
 | Error de CORS en la consola del navegador | `CORS_ORIGIN` no coincide con la URL del frontend | Copiar la URL exacta, sin `/` al final |
-| *"Supabase Storage: no se pudo subir…"* | El bucket no existe, el nombre no coincide, o la clave no es la service_role | Bucket `archivos` y clave service_role |
+| *"Supabase Storage: no se pudo subir…"* | El bucket no existe, el nombre no coincide, o se usó la *publishable key* | Bucket `archivos` y la clave **secreta** (`sb_secret_…`) |
 | No llegan los correos | Puerto distinto de 2525 o remitente no verificado en Brevo | `SMTP_PORT=2525`; los enlaces también están en los Logs |
 | La app tarda en abrir | Render despertando | Normal en el plan gratis: esperar ~1 minuto |
 
