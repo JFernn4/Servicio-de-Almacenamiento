@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../../ui/Icon';
 import Alert from '../../ui/Alert';
+import ConfirmDialog from '../../ui/ConfirmDialog';
 import ViewHeader from '../ViewHeader';
 import SearchInput from '../SearchInput';
 import EmptyState from '../EmptyState';
@@ -73,7 +74,24 @@ function MisArchivosView({ onRefreshUser }) {
   const [selectedColor, setSelectedColor] = useState('#FCA5A5');
   const [folderError, setFolderError] = useState('');
 
+  // Diálogo de confirmación propio (en lugar de window.confirm)
+  const [confirmRequest, setConfirmRequest] = useState(null); // { title, message, confirmLabel, resolve }
+  // Archivos arrastrados sobre el recuadro de "espacio vacío"
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+
   const fileInputRef = useRef(null);
+
+  /**
+   * Muestra el diálogo de confirmación y devuelve una promesa: true si el usuario acepta.
+   */
+  function askConfirm({ title, message, confirmLabel }) {
+    return new Promise((resolve) => setConfirmRequest({ title, message, confirmLabel, resolve }));
+  }
+
+  function closeConfirm(accepted) {
+    confirmRequest?.resolve(accepted);
+    setConfirmRequest(null);
+  }
 
   function applyDirectoryData(data) {
     const colorMap = readFolderColors();
@@ -129,23 +147,67 @@ function MisArchivosView({ onRefreshUser }) {
     }
   }
 
-  async function handleFileSelected(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  /**
+   * Sube uno o varios archivos (uno tras otro) a la carpeta actual.
+   * La usan el botón "Subir archivo" y el arrastre sobre el espacio vacío.
+   */
+  async function uploadFiles(fileList) {
+    const selected = Array.from(fileList || []);
+    if (selected.length === 0) return;
 
     setUploading(true);
     setFeedback(null);
+    let lastMessage = '';
+    let uploaded = 0;
     try {
-      const data = await uploadFile(file, currentFolder?.id ?? null);
-      setFeedback({ type: 'success', msg: data.message || 'Archivo subido exitosamente.' });
-      await loadCurrentDirectory(currentFolder?.id ?? null);
-      if (onRefreshUser) await onRefreshUser();
+      for (const file of selected) {
+        const data = await uploadFile(file, currentFolder?.id ?? null);
+        lastMessage = data.message;
+        uploaded += 1;
+      }
+      setFeedback({
+        type: 'success',
+        msg: uploaded === 1 ? lastMessage || 'Archivo subido exitosamente.' : `${uploaded} archivos subidos exitosamente.`,
+      });
     } catch (err) {
-      setFeedback({ type: 'error', msg: err.message });
+      const prefix = uploaded > 0 ? `Se subieron ${uploaded} de ${selected.length} archivos. ` : '';
+      setFeedback({ type: 'error', msg: prefix + err.message });
     } finally {
       setUploading(false);
+      if (uploaded > 0) {
+        await loadCurrentDirectory(currentFolder?.id ?? null);
+        if (onRefreshUser) await onRefreshUser();
+      }
     }
+  }
+
+  async function handleFileSelected(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) await uploadFiles([file]);
+  }
+
+  // Solo se reacciona cuando lo arrastrado son archivos (no texto ni enlaces)
+  const isFileDrag = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
+
+  function handleDragOver(e) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = uploading ? 'none' : 'copy';
+    if (!isDraggingFiles) setIsDraggingFiles(true);
+  }
+
+  function handleDragLeave(e) {
+    // dragleave también se dispara al pasar sobre elementos internos: ignorar esos casos
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setIsDraggingFiles(false);
+  }
+
+  function handleDrop(e) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    setIsDraggingFiles(false);
+    if (!uploading) uploadFiles(e.dataTransfer.files);
   }
 
   function openNewFolderModal() {
@@ -197,7 +259,12 @@ function MisArchivosView({ onRefreshUser }) {
   }
 
   async function handleDeleteFolder(folder) {
-    if (!window.confirm(`¿Eliminar la carpeta "${folder.name}" y todo su contenido?`)) return;
+    const accepted = await askConfirm({
+      title: 'Eliminar carpeta',
+      message: `¿Eliminar la carpeta "${folder.name}" y todo su contenido?`,
+      confirmLabel: 'Eliminar carpeta',
+    });
+    if (!accepted) return;
 
     setFeedback(null);
     try {
@@ -263,7 +330,12 @@ function MisArchivosView({ onRefreshUser }) {
   }
 
   async function handleDeleteFile(file) {
-    if (!window.confirm(`¿Eliminar el archivo "${file.name}"?`)) return;
+    const accepted = await askConfirm({
+      title: 'Eliminar archivo',
+      message: `¿Eliminar el archivo "${file.name}"?`,
+      confirmLabel: 'Eliminar archivo',
+    });
+    if (!accepted) return;
 
     setFeedback(null);
     try {
@@ -368,9 +440,15 @@ function MisArchivosView({ onRefreshUser }) {
           <>
             <div style={{ ...sectionLabelStyle, marginBottom: 16 }}>Carpetas</div>
             {folders.length === 0 ? (
-              <EmptyState style={{ padding: 32, marginBottom: 32 }}>
-                Aún no tienes carpetas en este nivel. Haz clic en &quot;Nueva carpeta&quot; para crear una.
-              </EmptyState>
+              <div
+                onDoubleClick={openNewFolderModal}
+                title="Doble clic para crear una carpeta"
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+              >
+                <EmptyState style={{ padding: 32, marginBottom: 32 }}>
+                  Aún no tienes carpetas en este nivel. Haz clic en &quot;Nueva carpeta&quot; para crear una.
+                </EmptyState>
+              </div>
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 32 }}>
                 {folders.map((folder) => {
@@ -469,12 +547,25 @@ function MisArchivosView({ onRefreshUser }) {
         )}
 
         <div style={{ ...sectionLabelStyle, marginBottom: 16 }}>Archivos</div>
-        {files.length === 0 ? (
-          <EmptyState icon="file">
-            {searchTerm.trim()
-              ? 'No se encontraron archivos que coincidan con tu búsqueda.'
-              : 'Tu espacio está vacío. Comienza subiendo tus primeros archivos corporativos.'}
-          </EmptyState>
+        {files.length === 0 && searchTerm.trim() ? (
+          <EmptyState icon="file">No se encontraron archivos que coincidan con tu búsqueda.</EmptyState>
+        ) : files.length === 0 ? (
+          <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+            <EmptyState
+              icon={isDraggingFiles ? 'upload' : 'file'}
+              style={
+                isDraggingFiles
+                  ? { background: colors.primarySoft, border: `2px dashed ${colors.primary}`, color: colors.primary }
+                  : undefined
+              }
+            >
+              {uploading
+                ? 'Subiendo archivos...'
+                : isDraggingFiles
+                  ? 'Suelta los archivos para subirlos.'
+                  : 'Tu espacio está vacío. Comienza subiendo tus primeros archivos corporativos.'}
+            </EmptyState>
+          </div>
         ) : (
           <FileTable
             files={files}
@@ -487,6 +578,16 @@ function MisArchivosView({ onRefreshUser }) {
           />
         )}
       </div>
+
+      {confirmRequest && (
+        <ConfirmDialog
+          title={confirmRequest.title}
+          message={confirmRequest.message}
+          confirmLabel={confirmRequest.confirmLabel}
+          onConfirm={() => closeConfirm(true)}
+          onCancel={() => closeConfirm(false)}
+        />
+      )}
 
       {/* Modal para crear Nueva Carpeta */}
       {isModalOpen && (
