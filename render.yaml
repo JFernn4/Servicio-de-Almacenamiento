@@ -1,0 +1,83 @@
+# Blueprint de Render: crea el backend y el frontend de VinCloud en el plan gratuito.
+# Render > New > Blueprint > elegir este repositorio. Ver docs/GUIA-DESPLIEGUE.md
+#
+# Las variables con "sync: false" son secretas o dependen de sus cuentas:
+# Render las pide al crear el Blueprint y NO se guardan en GitHub.
+services:
+  # ---------------- Backend (Express en Docker) ----------------
+  - type: web
+    name: vincloud-api
+    runtime: docker
+    plan: free
+    # Rutas desde la raíz del repositorio (sin rootDir, para evitar ambigüedades)
+    dockerfilePath: ./Back_/Dockerfile
+    dockerContext: ./Back_
+    buildFilter:
+      paths:
+        - Back_/**
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+
+      # Base de datos: Supabase (Connect > Session pooler, IPv4)
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        value: "true"
+
+      # Archivos: Supabase Storage (patrón Bridge)
+      - key: STORAGE_DRIVER
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      # Clave secreta sb_secret_... (o la service_role antigua), nunca la publishable
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: archivos
+      - key: MAX_UPLOAD_MB
+        value: "50"
+
+      # URL pública del frontend (la de vincloud-web)
+      - key: CORS_ORIGIN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+      # Correo: Brevo por el puerto 2525 (Render gratis bloquea 25, 465 y 587)
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: "2525"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+
+  # ---------------- Frontend (React compilado, sitio estático) ----------------
+  - type: web
+    name: vincloud-web
+    runtime: static
+    buildCommand: cd Front_ && npm ci && npm run build
+    staticPublishPath: ./Front_/dist
+    buildFilter:
+      paths:
+        - Front_/**
+    autoDeploy: true
+    routes:
+      # Aplicación de una sola página: toda ruta la resuelve index.html
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # URL del backend (la de vincloud-api) terminada en /api
+      - key: VITE_API_URL
+        sync: false

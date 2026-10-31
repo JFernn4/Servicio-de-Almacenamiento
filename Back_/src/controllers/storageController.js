@@ -1,5 +1,27 @@
+import { pipeline } from 'stream/promises';
 import * as storageService from '../services/storageService.js';
 import { validateId, validateCreateFolder, validateRename } from '../validators/storageValidator.js';
+
+/**
+ * Envía el contenido de un archivo por streaming, venga del disco o de Supabase (patrón Bridge).
+ * `inline` lo muestra en el navegador; si no, se descarga como adjunto.
+ */
+async function sendStoredFile(res, { stream, size, nombre, tipo }, { inline = false } = {}) {
+  res.setHeader('Content-Type', tipo || 'application/octet-stream');
+  res.setHeader(
+    'Content-Disposition',
+    `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(nombre)}`
+  );
+  if (size) res.setHeader('Content-Length', String(size));
+
+  try {
+    await pipeline(stream, res);
+  } catch (error) {
+    // Si ya se enviaron datos no se puede responder con JSON: solo cortar la conexión
+    if (!res.headersSent) throw error;
+    res.destroy(error);
+  }
+}
 
 /**
  * Procesa la subida de uno o múltiples archivos al espacio del usuario,
@@ -34,9 +56,9 @@ export async function uploadFile(req, res) {
  */
 export async function downloadFile(req, res) {
   const archivoId = validateId(req.params.id, 'archivo');
-  const { physicalPath, nombre } = await storageService.getFileForDownload(archivoId, req.user.id);
+  const archivo = await storageService.getFileForDownload(archivoId, req.user.id);
 
-  res.download(physicalPath, nombre);
+  await sendStoredFile(res, archivo);
 }
 
 /**
@@ -196,11 +218,9 @@ export async function deleteFolder(req, res) {
  */
 export async function viewFile(req, res) {
   const archivoId = validateId(req.params.id, 'archivo');
-  const { physicalPath, nombre, tipo } = await storageService.getFileForDownload(archivoId, req.user.id);
+  const archivo = await storageService.getFileForDownload(archivoId, req.user.id);
 
-  res.setHeader('Content-Type', tipo || 'application/octet-stream');
-  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nombre)}"`);
-  res.sendFile(physicalPath);
+  await sendStoredFile(res, archivo, { inline: true });
 }
 
 /**
@@ -234,13 +254,7 @@ export async function getSharedFileInfo(req, res) {
  * Descarga o visualiza (?inline=true) un archivo público/compartido mediante su token de invitación.
  */
 export async function downloadSharedFile(req, res) {
-  const { physicalPath, nombre, tipo } = await storageService.getSharedFileForDownload(req.params.token);
+  const archivo = await storageService.getSharedFileForDownload(req.params.token);
 
-  if (req.query.inline === 'true') {
-    res.setHeader('Content-Type', tipo || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nombre)}"`);
-    return res.sendFile(physicalPath);
-  }
-
-  return res.download(physicalPath, nombre);
+  await sendStoredFile(res, archivo, { inline: req.query.inline === 'true' });
 }

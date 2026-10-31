@@ -1,7 +1,6 @@
-import fs from 'fs/promises';
 import * as adminRepository from '../repositories/adminRepository.js';
 import { toPublicUser } from './authService.js';
-import { getPhysicalFilePath } from './storageService.js';
+import { fileStorage } from '../patterns/storageBridge/index.js';
 import { HttpError } from '../utils/httpError.js';
 
 const PG_UNIQUE_VIOLATION = '23505';
@@ -78,12 +77,7 @@ export async function deleteUser(adminId, targetUserId) {
   const userFiles = await adminRepository.findAllFilesByUser(targetUserId);
   const deleted = await adminRepository.deleteUserById(targetUserId);
 
-  await Promise.all(
-    userFiles.map(async (arch) => {
-      const physicalPath = getPhysicalFilePath(arch);
-      await fs.unlink(physicalPath).catch(() => {});
-    })
-  );
+  await fileStorage.removeMany(userFiles);
 
   return {
     id: deleted.id,

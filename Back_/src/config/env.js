@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,6 +16,9 @@ const isRemoteDatabase = Boolean(
   !rawDatabaseUrl.includes('localhost') &&
   !rawDatabaseUrl.includes('127.0.0.1')
 );
+const storageDriver = (env.STORAGE_DRIVER || 'local').toLowerCase();
+const uploadDir = env.UPLOAD_DIR ? path.resolve(env.UPLOAD_DIR) : path.resolve(__dirname, '../../uploads');
+
 const sslEnabled = env.DB_SSL !== undefined
   ? env.DB_SSL === 'true'
   : isRemoteDatabase;
@@ -55,6 +59,21 @@ export const config = {
   },
 
   storage: {
-    uploadDir: env.UPLOAD_DIR ? path.resolve(env.UPLOAD_DIR) : path.resolve(__dirname, '../../uploads'),
+    // Patrón Bridge: "local" (disco, desarrollo) o "supabase" (Supabase Storage, despliegue)
+    driver: storageDriver,
+    uploadDir,
+    // Donde Multer escribe la subida antes de entregarla al proveedor de almacenamiento
+    tempDir: env.UPLOAD_TMP_DIR
+      ? path.resolve(env.UPLOAD_TMP_DIR)
+      : storageDriver === 'local'
+        ? uploadDir
+        : path.join(os.tmpdir(), 'vincloud-uploads'),
+    // Tope global por archivo (MB), por encima de los límites de cada plan. Ej.: 50 en Supabase gratis
+    maxUploadBytes: Number(env.MAX_UPLOAD_MB) > 0 ? Number(env.MAX_UPLOAD_MB) * 1024 * 1024 : null,
+    supabase: {
+      url: env.SUPABASE_URL,
+      serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+      bucket: env.SUPABASE_BUCKET || 'archivos',
+    },
   },
 };

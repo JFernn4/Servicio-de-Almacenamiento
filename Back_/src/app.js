@@ -39,7 +39,9 @@ app.get('/api/health', async (req, res) => {
       dbName: config.db.database,
       timestamp: new Date().toISOString(),
     });
-  } catch {
+  } catch (error) {
+    // Registrar el motivo: en Render, si la BD falla, este log es la única pista
+    console.error('[Health check] La base de datos no responde:', error.code || '', error.message);
     res.status(503).json({
       status: 'error',
       database: 'disconnected',

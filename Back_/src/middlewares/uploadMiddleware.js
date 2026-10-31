@@ -8,17 +8,18 @@ import { MAX_FILE_SIZE_BYTES, FORBIDDEN_FILE_EXTENSIONS } from '../config/consta
 import { resolveUserPlanDecorator } from '../services/subscriptionService.js';
 import { PlanGratuito } from '../patterns/planDecorator.js';
 import { HttpError } from '../utils/httpError.js';
+import { effectiveMaxFileSize, fileTooLargeMessage } from '../utils/uploadLimits.js';
 
-// Asegurar que el directorio de almacenamiento exista
-const uploadDir = config.storage.uploadDir;
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+// Multer escribe cada subida en una carpeta temporal; luego el patrón Bridge (fileStorage)
+// la lleva a su destino definitivo (disco local o Supabase Storage).
+const tempDir = config.storage.tempDir;
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir, { recursive: true });
 }
 
-// Configuración de almacenamiento en disco (provisional y desacoplada para futura migración)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir);
+    cb(null, tempDir);
   },
   filename: (req, file, cb) => {
     // Nombre único en disco para evitar colisiones: [timestamp]-[uuid].[ext]
@@ -103,12 +104,11 @@ export function handleSingleUpload(fieldName = 'archivo') {
       req.suscripcionActiva = suscripcionActual;
 
       const politica = planDecorado.obtenerPoliticaMulter();
-      const maxMb = Number((politica.maxFileSizeBytes / (1024 * 1024)).toFixed(0));
 
       const dynamicUpload = multer({
         storage,
         limits: {
-          fileSize: politica.maxFileSizeBytes,
+          fileSize: effectiveMaxFileSize(politica),
           files: politica.maxFiles,
         },
         fileFilter,
@@ -131,10 +131,7 @@ export function handleSingleUpload(fieldName = 'archivo') {
         if (err instanceof multer.MulterError) {
           if (err.code === 'LIMIT_FILE_SIZE') {
             return next(
-              new HttpError(
-                400,
-                `[Multer Dinámico - ${planDecorado.constructor.name}] El archivo excede el tamaño máximo permitido por tu plan actual (${maxMb} MB). Mejora tu suscripción para subir archivos más pesados.`
-              )
+              new HttpError(400, fileTooLargeMessage({ politica, planName: planDecorado.constructor.name }))
             );
           }
 
