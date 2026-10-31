@@ -17,6 +17,17 @@ export async function findById(id) {
 }
 
 /**
+ * Busca por ID incluyendo el hash de contraseña (para validar vigencia de sesiones y tokens de uso único).
+ */
+export async function findByIdWithPassword(id) {
+  const { rows } = await query(
+    `SELECT ${PUBLIC_COLUMNS}, u.contrasena_hash ${FROM_USER_WITH_ROLE} WHERE u.id = $1`,
+    [id]
+  );
+  return rows[0] ?? null;
+}
+
+/**
  * Busca por correo incluyendo el hash de contraseña (solo para autenticación).
  */
 export async function findByEmailWithPassword(correo) {
@@ -57,4 +68,43 @@ export async function markEmailVerified(id) {
 export async function updatePassword(id, contrasenaHash) {
   const { rowCount } = await query('UPDATE usuario SET contrasena_hash = $2 WHERE id = $1', [id, contrasenaHash]);
   return rowCount > 0;
+}
+
+/**
+ * Consulta la cuota actual de almacenamiento del usuario.
+ */
+export async function getStorageQuota(id) {
+  const { rows } = await query(
+    'SELECT espacio_consumido, espacio_disponible FROM usuario WHERE id = $1',
+    [id]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Incrementa atómicamente el espacio consumido del usuario.
+ */
+export async function incrementConsumedSpace(id, bytes) {
+  const { rows } = await query(
+    `UPDATE usuario
+     SET espacio_consumido = espacio_consumido + $1
+     WHERE id = $2
+     RETURNING espacio_consumido, espacio_disponible`,
+    [bytes, id]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Decrementa atómicamente el espacio consumido del usuario sin permitir valores negativos.
+ */
+export async function decrementConsumedSpace(id, bytes) {
+  const { rows } = await query(
+    `UPDATE usuario
+     SET espacio_consumido = GREATEST(0, espacio_consumido - $1)
+     WHERE id = $2
+     RETURNING espacio_consumido, espacio_disponible`,
+    [bytes, id]
+  );
+  return rows[0] ?? null;
 }

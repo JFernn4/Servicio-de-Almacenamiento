@@ -1,13 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Icon from '../../ui/Icon';
+import Alert from '../../ui/Alert';
+import ConfirmDialog from '../../ui/ConfirmDialog';
+import { useConfirm } from '../../../hooks/useConfirm';
 import ViewHeader from '../ViewHeader';
 import SearchInput from '../SearchInput';
 import EmptyState from '../EmptyState';
 import FileTable from '../FileTable';
 import { colors, sectionLabelStyle, resetButtonStyle } from '../../../styles/theme';
+import { mapFileForTable } from '../../../utils/user';
+import {
+  fetchDirectory,
+  searchFiles,
+  uploadFile,
+  previewFile,
+  downloadFile,
+  shareFile,
+  renameFile,
+  deleteFile,
+  createFolder,
+  renameFolder,
+  deleteFolder,
+} from '../../../services/storageService';
 
-const FOLDERS_STORAGE_KEY = 'vincloud_folders';
-const FILES_STORAGE_KEY = 'vincloud_files';
+const FOLDER_COLORS_KEY = 'vincloud_folder_colors';
 
 const FOLDER_COLORS = [
   { label: 'Vino', value: colors.primary },
@@ -29,87 +45,168 @@ const actionButtonStyle = {
   cursor: 'pointer',
 };
 
-function formatFileSize(bytes) {
-  if (!bytes || bytes < 1024) return `${bytes || 0} B`;
-  const kb = bytes / 1024;
-  if (kb < 1024) return `${kb.toFixed(1)} KB`;
-  const mb = kb / 1024;
-  return `${mb.toFixed(2)} MB`;
+function readFolderColors() {
+  try {
+    return JSON.parse(localStorage.getItem(FOLDER_COLORS_KEY)) || {};
+  } catch {
+    return {};
+  }
 }
 
-function getFileBadge(fileName) {
-  const ext = (fileName.split('.').pop() || 'FILE').toUpperCase().slice(0, 4);
-  if (['PDF', 'PPT', 'PPTX'].includes(ext)) return { type: ext, color: colors.danger };
-  if (['DOC', 'DOCX', 'TXT'].includes(ext)) return { type: ext, color: colors.info };
-  if (['XLS', 'XLSX', 'CSV'].includes(ext)) return { type: ext, color: colors.successDark };
-  if (['PNG', 'JPG', 'JPEG', 'SVG', 'WEBP'].includes(ext)) return { type: ext, color: colors.warningDark };
-  return { type: ext, color: colors.primary };
+function saveFolderColor(folderId, color) {
+  const current = readFolderColors();
+  current[folderId] = color;
+  localStorage.setItem(FOLDER_COLORS_KEY, JSON.stringify(current));
 }
 
-function formatToday() {
-  return new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+function MisArchivosView({ onRefreshUser }) {
+  const [folders, setFolders] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [currentFolder, setCurrentFolder] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [feedback, setFeedback] = useState(null); // { type: 'error' | 'success', msg: string }
+  const [openFolderMenuId, setOpenFolderMenuId] = useState(null);
 
-function MisArchivosView() {
-  const [folders, setFolders] = useState(() => {
-    try {
-      const saved = localStorage.getItem(FOLDERS_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [files, setFiles] = useState(() => {
-    try {
-      const saved = localStorage.getItem(FILES_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [currentFolderId, setCurrentFolderId] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  // Estado del modal de Nueva Carpeta
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-  const [selectedColor, setSelectedColor] = useState(colors.primary);
+  const [selectedColor, setSelectedColor] = useState('#FCA5A5');
   const [folderError, setFolderError] = useState('');
+
+  // Diálogo de confirmación propio (en lugar de window.confirm)
+  const { askConfirm, confirmDialogProps } = useConfirm();
+  // Archivos arrastrados sobre el recuadro de "espacio vacío"
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
 
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(folders));
-  }, [folders]);
+  function applyDirectoryData(data) {
+    const colorMap = readFolderColors();
+    setCurrentFolder(data.carpetaActual || null);
+    setFolders(
+      (data.carpetas || []).map((c) => ({
+        id: c.id,
+        name: c.nombre,
+        elements: c.total_elementos ?? 0,
+        date: String(c.fecha_creacion || '').slice(0, 10),
+        color: colorMap[c.id] || '#FCA5A5',
+      }))
+    );
+    setFiles((data.archivos || []).map(mapFileForTable));
+  }
+
+  async function loadCurrentDirectory(carpetaId = currentFolder?.id ?? null) {
+    try {
+      applyDirectoryData(await fetchDirectory(carpetaId));
+    } catch (err) {
+      setFeedback({ type: 'error', msg: err.message });
+    }
+  }
 
   useEffect(() => {
-    localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(files));
-  }, [files]);
+    // Limpiar posibles restos antiguos en localStorage que causaban carpetas compartidas
+    localStorage.removeItem('vincloud_folders');
+    localStorage.removeItem('vincloud_files');
 
-  const currentFolder = folders.find((f) => f.id === currentFolderId) || null;
+    let active = true;
+    fetchDirectory(null).then(
+      (data) => active && applyDirectoryData(data),
+      (err) => active && setFeedback({ type: 'error', msg: err.message })
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  // Filtrar carpetas y archivos según la carpeta abierta y la búsqueda
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-  const visibleFolders = folders.filter((f) => {
-    const matchesParent = (f.parentId || null) === currentFolderId;
-    const matchesSearch = !normalizedQuery || f.name.toLowerCase().includes(normalizedQuery);
-    return matchesParent && matchesSearch;
-  });
+  async function handleSearchChange(value) {
+    setSearchTerm(value);
+    const clean = value.trim();
+    if (!clean) {
+      loadCurrentDirectory(currentFolder?.id ?? null);
+      return;
+    }
 
-  const visibleFiles = files.filter((file) => {
-    const matchesFolder = (file.folderId || null) === currentFolderId;
-    const matchesSearch = !normalizedQuery || file.name.toLowerCase().includes(normalizedQuery);
-    return matchesFolder && matchesSearch;
-  });
+    try {
+      const resultados = await searchFiles(clean);
+      setFiles(resultados.map(mapFileForTable));
+    } catch (err) {
+      setFeedback({ type: 'error', msg: err.message });
+    }
+  }
+
+  /**
+   * Sube uno o varios archivos (uno tras otro) a la carpeta actual.
+   * La usan el botón "Subir archivo" y el arrastre sobre el espacio vacío.
+   */
+  async function uploadFiles(fileList) {
+    const selected = Array.from(fileList || []);
+    if (selected.length === 0) return;
+
+    setUploading(true);
+    setFeedback(null);
+    let lastMessage = '';
+    let uploaded = 0;
+    try {
+      for (const file of selected) {
+        const data = await uploadFile(file, currentFolder?.id ?? null);
+        lastMessage = data.message;
+        uploaded += 1;
+      }
+      setFeedback({
+        type: 'success',
+        msg: uploaded === 1 ? lastMessage || 'Archivo subido exitosamente.' : `${uploaded} archivos subidos exitosamente.`,
+      });
+    } catch (err) {
+      const prefix = uploaded > 0 ? `Se subieron ${uploaded} de ${selected.length} archivos. ` : '';
+      setFeedback({ type: 'error', msg: prefix + err.message });
+    } finally {
+      setUploading(false);
+      if (uploaded > 0) {
+        await loadCurrentDirectory(currentFolder?.id ?? null);
+        if (onRefreshUser) await onRefreshUser();
+      }
+    }
+  }
+
+  async function handleFileSelected(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) await uploadFiles([file]);
+  }
+
+  // Solo se reacciona cuando lo arrastrado son archivos (no texto ni enlaces)
+  const isFileDrag = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
+
+  function handleDragOver(e) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = uploading ? 'none' : 'copy';
+    if (!isDraggingFiles) setIsDraggingFiles(true);
+  }
+
+  function handleDragLeave(e) {
+    // dragleave también se dispara al pasar sobre elementos internos: ignorar esos casos
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setIsDraggingFiles(false);
+  }
+
+  function handleDrop(e) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    setIsDraggingFiles(false);
+    if (!uploading) uploadFiles(e.dataTransfer.files);
+  }
 
   function openNewFolderModal() {
     setNewFolderName('');
-    setSelectedColor(colors.primary);
+    setSelectedColor('#FCA5A5');
     setFolderError('');
     setIsModalOpen(true);
   }
 
-  function handleCreateFolder(e) {
+  async function handleCreateFolder(e) {
     e.preventDefault();
     const trimmed = newFolderName.trim();
     if (!trimmed) {
@@ -117,91 +214,156 @@ function MisArchivosView() {
       return;
     }
 
-    const exists = folders.some(
-      (f) => (f.parentId || null) === currentFolderId && f.name.toLowerCase() === trimmed.toLowerCase()
-    );
-    if (exists) {
-      setFolderError('Ya existe una carpeta con ese nombre en esta ubicación.');
-      return;
-    }
-
-    const created = {
-      id: `folder_${Date.now()}`,
-      name: trimmed,
-      parentId: currentFolderId,
-      color: selectedColor,
-      date: formatToday(),
-    };
-
-    setFolders((prev) => [created, ...prev]);
-    setIsModalOpen(false);
-    setNewFolderName('');
+    setCreatingFolder(true);
     setFolderError('');
+    setFeedback(null);
+    try {
+      const data = await createFolder(trimmed, currentFolder?.id ?? null);
+      if (data?.carpeta?.id) {
+        saveFolderColor(data.carpeta.id, selectedColor);
+      }
+      setIsModalOpen(false);
+      setNewFolderName('');
+      setFeedback({ type: 'success', msg: data.message || 'Carpeta creada exitosamente.' });
+      await loadCurrentDirectory(currentFolder?.id ?? null);
+    } catch (err) {
+      setFolderError(err.message);
+    } finally {
+      setCreatingFolder(false);
+    }
   }
 
-  function handleDeleteFolder(e, folderId) {
-    e.stopPropagation();
-    setFolders((prev) => prev.filter((f) => f.id !== folderId && f.parentId !== folderId));
-    setFiles((prev) => prev.filter((file) => file.folderId !== folderId));
+  async function handleRenameFolder(folder) {
+    const nuevoNombre = window.prompt('Nuevo nombre para la carpeta:', folder.name);
+    if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === folder.name) return;
+
+    setFeedback(null);
+    try {
+      const data = await renameFolder(folder.id, nuevoNombre.trim());
+      setFeedback({ type: 'success', msg: data.message || 'Carpeta renombrada.' });
+      await loadCurrentDirectory(currentFolder?.id ?? null);
+    } catch (err) {
+      setFeedback({ type: 'error', msg: err.message });
+    }
   }
 
-  function handleFilesSelected(e) {
-    const pickedFiles = Array.from(e.target.files || []);
-    if (pickedFiles.length === 0) return;
-
-    const uploaded = pickedFiles.map((rawFile, idx) => {
-      const badge = getFileBadge(rawFile.name);
-      return {
-        id: `file_${Date.now()}_${idx}`,
-        name: rawFile.name,
-        type: badge.type,
-        color: badge.color,
-        size: formatFileSize(rawFile.size),
-        date: formatToday(),
-        folderId: currentFolderId,
-      };
+  async function handleDeleteFolder(folder) {
+    const accepted = await askConfirm({
+      title: 'Eliminar carpeta',
+      message: `¿Eliminar la carpeta "${folder.name}" y todo su contenido?`,
+      confirmLabel: 'Eliminar carpeta',
     });
+    if (!accepted) return;
 
-    setFiles((prev) => [...uploaded, ...prev]);
-    e.target.value = '';
+    setFeedback(null);
+    try {
+      const data = await deleteFolder(folder.id);
+      setFeedback({ type: 'success', msg: data.message || 'Carpeta eliminada.' });
+      await loadCurrentDirectory(currentFolder?.id ?? null);
+      if (onRefreshUser) await onRefreshUser();
+    } catch (err) {
+      setFeedback({ type: 'error', msg: err.message });
+    }
   }
 
-  function handleDeleteFile(fileId) {
-    setFiles((prev) => prev.filter((f) => f.id !== fileId));
+  async function handlePreviewFile(file) {
+    try {
+      await previewFile(file.id);
+    } catch (err) {
+      setFeedback({ type: 'error', msg: err.message });
+    }
   }
 
-  function countElementsInFolder(folderId) {
-    const subFolders = folders.filter((f) => f.parentId === folderId).length;
-    const subFiles = files.filter((f) => f.folderId === folderId).length;
-    return subFolders + subFiles;
+  async function handleShareFile(file) {
+    const correo = window.prompt(
+      `Ingresa el correo del usuario registrado para enviarle una invitación a "${file.name}" (o déjalo vacío para generar solo el enlace público):`,
+      ''
+    );
+    if (correo === null) return;
+
+    setFeedback(null);
+    try {
+      const data = await shareFile(file.id, correo.trim());
+      if (navigator.clipboard && data.shareUrl) {
+        await navigator.clipboard.writeText(data.shareUrl).catch(() => {});
+      }
+      setFeedback({
+        type: 'success',
+        msg: `${data.message} Enlace: ${data.shareUrl}`,
+      });
+    } catch (err) {
+      setFeedback({ type: 'error', msg: err.message });
+    }
+  }
+
+  async function handleDownloadFile(file) {
+    try {
+      await downloadFile(file.id, file.name);
+    } catch (err) {
+      setFeedback({ type: 'error', msg: err.message });
+    }
+  }
+
+  async function handleRenameFile(file) {
+    const nuevoNombre = window.prompt('Nuevo nombre para el archivo:', file.name);
+    if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === file.name) return;
+
+    setFeedback(null);
+    try {
+      const data = await renameFile(file.id, nuevoNombre.trim());
+      setFeedback({ type: 'success', msg: data.message || 'Archivo renombrado.' });
+      await loadCurrentDirectory(currentFolder?.id ?? null);
+    } catch (err) {
+      setFeedback({ type: 'error', msg: err.message });
+    }
+  }
+
+  async function handleDeleteFile(file) {
+    const accepted = await askConfirm({
+      title: 'Eliminar archivo',
+      message: `¿Eliminar el archivo "${file.name}"?`,
+      confirmLabel: 'Eliminar archivo',
+    });
+    if (!accepted) return;
+
+    setFeedback(null);
+    try {
+      const data = await deleteFile(file.id);
+      setFeedback({ type: 'success', msg: data.message || 'Archivo eliminado.' });
+      await loadCurrentDirectory(currentFolder?.id ?? null);
+      if (onRefreshUser) await onRefreshUser();
+    } catch (err) {
+      setFeedback({ type: 'error', msg: err.message });
+    }
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        onChange={handleFileSelected}
+        style={{ display: 'none' }}
+      />
+
       <ViewHeader
-        title={currentFolder ? currentFolder.name : 'Mis Archivos'}
-        subtitle={`${visibleFolders.length} carpetas · ${visibleFiles.length} archivos`}
+        title={currentFolder ? currentFolder.nombre : 'Mis Archivos'}
+        subtitle={`${folders.length} carpetas · ${files.length} archivos`}
       >
         <SearchInput
-          placeholder="Buscar carpetas o archivos..."
-          value={searchQuery}
-          onChange={setSearchQuery}
+          placeholder="Buscar archivos..."
+          value={searchTerm}
+          onChange={handleSearchChange}
         />
         <div style={{ display: 'flex', gap: 12 }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleFilesSelected}
-            style={{ display: 'none' }}
-          />
           <button
             type="button"
+            disabled={uploading}
             onClick={() => fileInputRef.current?.click()}
-            style={{ ...actionButtonStyle, background: colors.surface, color: colors.primary }}
+            style={{ ...actionButtonStyle, background: colors.surface, color: colors.primary, opacity: uploading ? 0.6 : 1 }}
           >
             <Icon name="upload" size={14} />
-            Subir archivo
+            {uploading ? 'Subiendo...' : 'Subir archivo'}
           </button>
           <button
             type="button"
@@ -215,6 +377,12 @@ function MisArchivosView() {
       </ViewHeader>
 
       <div style={{ padding: 32, overflowY: 'auto' }}>
+        {feedback && (
+          <div style={{ marginBottom: 20 }}>
+            <Alert type={feedback.type}>{feedback.msg}</Alert>
+          </div>
+        )}
+
         {/* Barra de navegación (Breadcrumbs) cuando se está dentro de una carpeta */}
         {currentFolder && (
           <div
@@ -232,7 +400,7 @@ function MisArchivosView() {
           >
             <button
               type="button"
-              onClick={() => setCurrentFolderId(currentFolder.parentId || null)}
+              onClick={() => loadCurrentDirectory(currentFolder.carpeta_padre_id ?? null)}
               style={{
                 ...resetButtonStyle,
                 display: 'inline-flex',
@@ -247,94 +415,165 @@ function MisArchivosView() {
             <span style={{ color: colors.border }}>|</span>
             <button
               type="button"
-              onClick={() => setCurrentFolderId(null)}
+              onClick={() => loadCurrentDirectory(null)}
               style={{ ...resetButtonStyle, color: colors.muted, fontWeight: 600 }}
             >
               Mis Archivos
             </button>
             <span style={{ color: colors.subtle }}>/</span>
-            <span style={{ color: colors.primaryDark, fontWeight: 700 }}>{currentFolder.name}</span>
+            <span style={{ color: colors.primaryDark, fontWeight: 700 }}>{currentFolder.nombre}</span>
           </div>
         )}
 
-        <div style={{ ...sectionLabelStyle, marginBottom: 16 }}>Carpetas</div>
-        {visibleFolders.length === 0 ? (
-          <EmptyState style={{ padding: 32, marginBottom: 32 }}>
-            Aún no tienes carpetas aquí. Haz clic en &quot;Nueva carpeta&quot; para crear una.
-          </EmptyState>
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 32 }}>
-            {visibleFolders.map((folder) => {
-              const count = countElementsInFolder(folder.id);
-              return (
-                <div
-                  key={folder.id}
-                  onClick={() => setCurrentFolderId(folder.id)}
-                  style={{
-                    background: colors.surface,
-                    borderRadius: 12,
-                    padding: 16,
-                    width: 215,
-                    border: `1px solid ${colors.border}`,
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(15, 23, 42, 0.03)',
-                    transition: 'transform 0.15s ease, border-color 0.15s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <Icon name="folder" size={26} fill={folder.color || '#FCA5A5'} />
-                    <button
-                      type="button"
-                      title="Eliminar carpeta"
-                      onClick={(e) => handleDeleteFolder(e, folder.id)}
+        {!searchTerm.trim() && (
+          <>
+            <div style={{ ...sectionLabelStyle, marginBottom: 16 }}>Carpetas</div>
+            {folders.length === 0 ? (
+              <div
+                onDoubleClick={openNewFolderModal}
+                title="Doble clic para crear una carpeta"
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+              >
+                <EmptyState style={{ padding: 32, marginBottom: 32 }}>
+                  Aún no tienes carpetas en este nivel. Haz clic en &quot;Nueva carpeta&quot; para crear una.
+                </EmptyState>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 32 }}>
+                {folders.map((folder) => {
+                  const isMenuOpen = openFolderMenuId === folder.id;
+                  return (
+                    <div
+                      key={folder.id}
+                      onClick={() => loadCurrentDirectory(folder.id)}
                       style={{
-                        ...resetButtonStyle,
-                        padding: 4,
-                        borderRadius: 6,
-                        color: colors.subtle,
-                        display: 'flex',
-                        alignItems: 'center',
+                        position: 'relative',
+                        background: colors.surface,
+                        borderRadius: 12,
+                        padding: 16,
+                        width: 215,
+                        border: `1px solid ${colors.border}`,
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.03)',
+                        transition: 'transform 0.15s ease, border-color 0.15s ease',
                       }}
                     >
-                      <Icon name="trash" size={14} color={colors.subtle} />
-                    </button>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: colors.primaryDark,
-                      marginBottom: 4,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {folder.name}
-                  </div>
-                  <div style={{ fontSize: 12, color: colors.subtle }}>
-                    {count} {count === 1 ? 'elemento' : 'elementos'} · {folder.date}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <Icon name="folder" size={26} fill={folder.color || '#FCA5A5'} />
+                        <button
+                          type="button"
+                          aria-label={`Opciones de carpeta ${folder.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenFolderMenuId(isMenuOpen ? null : folder.id);
+                          }}
+                          style={{ ...resetButtonStyle, padding: 4 }}
+                        >
+                          <Icon name="more" size={16} color={colors.subtle} />
+                        </button>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: colors.primaryDark,
+                          marginBottom: 4,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {folder.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: colors.subtle }}>
+                        {folder.elements} {folder.elements === 1 ? 'elemento' : 'elementos'} · {folder.date}
+                      </div>
+
+                      {isMenuOpen && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            position: 'absolute',
+                            right: 12,
+                            top: 42,
+                            background: colors.surface,
+                            border: `1px solid ${colors.border}`,
+                            borderRadius: 8,
+                            boxShadow: '0 8px 20px rgba(15, 23, 42, 0.1)',
+                            zIndex: 20,
+                            minWidth: 130,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenFolderMenuId(null);
+                              handleRenameFolder(folder);
+                            }}
+                            style={{ ...resetButtonStyle, display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', fontSize: 13, fontWeight: 600, color: colors.primaryDark }}
+                          >
+                            Renombrar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenFolderMenuId(null);
+                              handleDeleteFolder(folder);
+                            }}
+                            style={{ ...resetButtonStyle, display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', fontSize: 13, fontWeight: 600, color: colors.danger }}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
 
         <div style={{ ...sectionLabelStyle, marginBottom: 16 }}>Archivos</div>
-        {visibleFiles.length === 0 ? (
-          <EmptyState icon="file">
-            Tu espacio está vacío. Comienza subiendo tus primeros archivos corporativos.
-          </EmptyState>
+        {files.length === 0 && searchTerm.trim() ? (
+          <EmptyState icon="file">No se encontraron archivos que coincidan con tu búsqueda.</EmptyState>
+        ) : files.length === 0 ? (
+          <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+            <EmptyState
+              icon={isDraggingFiles ? 'upload' : 'file'}
+              style={
+                isDraggingFiles
+                  ? { background: colors.primarySoft, border: `2px dashed ${colors.primary}`, color: colors.primary }
+                  : undefined
+              }
+            >
+              {uploading
+                ? 'Subiendo archivos...'
+                : isDraggingFiles
+                  ? 'Suelta los archivos para subirlos.'
+                  : 'Tu espacio está vacío. Comienza subiendo tus primeros archivos corporativos.'}
+            </EmptyState>
+          </div>
         ) : (
-          <FileTable files={visibleFiles} dateLabel="Modificado" onDelete={handleDeleteFile} />
+          <FileTable
+            files={files}
+            dateLabel="Modificado"
+            onPreview={handlePreviewFile}
+            onShare={handleShareFile}
+            onDownload={handleDownloadFile}
+            onRename={handleRenameFile}
+            onDelete={handleDeleteFile}
+          />
         )}
       </div>
+
+      {confirmDialogProps && <ConfirmDialog {...confirmDialogProps} />}
 
       {/* Modal para crear Nueva Carpeta */}
       {isModalOpen && (
         <div
-          onClick={() => setIsModalOpen(false)}
+          onClick={() => !creatingFolder && setIsModalOpen(false)}
           style={{
             position: 'fixed',
             inset: 0,
@@ -378,7 +617,7 @@ function MisArchivosView() {
                   Nueva carpeta
                 </h3>
                 <p style={{ margin: 0, fontSize: 12, color: colors.subtle }}>
-                  {currentFolder ? `Se creará dentro de "${currentFolder.name}"` : 'Se creará en Mis Archivos'}
+                  {currentFolder ? `Se creará dentro de "${currentFolder.nombre}"` : 'Se creará en Mis Archivos'}
                 </p>
               </div>
             </div>
@@ -451,6 +690,7 @@ function MisArchivosView() {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
                 <button
                   type="button"
+                  disabled={creatingFolder}
                   onClick={() => setIsModalOpen(false)}
                   style={{
                     padding: '9px 16px',
@@ -460,13 +700,14 @@ function MisArchivosView() {
                     color: colors.muted,
                     fontWeight: 700,
                     fontSize: 13,
-                    cursor: 'pointer',
+                    cursor: creatingFolder ? 'not-allowed' : 'pointer',
                   }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
+                  disabled={creatingFolder}
                   style={{
                     padding: '9px 18px',
                     borderRadius: 8,
@@ -475,10 +716,11 @@ function MisArchivosView() {
                     color: colors.surface,
                     fontWeight: 700,
                     fontSize: 13,
-                    cursor: 'pointer',
+                    cursor: creatingFolder ? 'not-allowed' : 'pointer',
+                    opacity: creatingFolder ? 0.7 : 1,
                   }}
                 >
-                  Crear carpeta
+                  {creatingFolder ? 'Creando...' : 'Crear carpeta'}
                 </button>
               </div>
             </form>

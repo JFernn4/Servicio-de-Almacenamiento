@@ -6,22 +6,14 @@ import CheckEmailScreen from './pages/Auth/CheckEmailScreen';
 import ForgotPasswordScreen from './pages/Auth/ForgotPasswordScreen';
 import ResetPasswordScreen from './pages/Auth/ResetPasswordScreen';
 import VerifyEmailScreen from './pages/Auth/VerifyEmailScreen';
+import SharedFileScreen from './pages/Auth/SharedFileScreen';
 import DashboardScreen from './pages/Dashboard/DashboardScreen';
 import AdminView from './components/dashboard/views/AdminView';
 import { clearSession, getProfile } from './services/authService';
 import { colors } from './styles/theme';
 
 // Pantallas que se abren desde un enlace de correo: ?mode=<pantalla>&token=...
-const EMAIL_LINK_SCREENS = ['reset-password', 'verify-email'];
-
-const DEMO_ADMIN_USER = {
-  id: 'admin_demo',
-  nombre: 'Administrador',
-  correo: 'admin@vincloud.app',
-  rol: 'admin',
-  usadoGb: 0,
-  limiteGb: 15,
-};
+const EMAIL_LINK_SCREENS = ['reset-password', 'verify-email', 'shared-file'];
 
 const DEMO_CLIENT_USER = {
   id: 'client_demo',
@@ -58,7 +50,7 @@ function readInitialScreen() {
 const initial = readInitialScreen();
 
 function App() {
-  // 'landing' | 'login' | 'register' | 'check-email' | 'forgot-password' | 'reset-password' | 'verify-email' | 'admin'
+  // 'login' | 'register' | 'forgot-password' | 'reset-password' | 'verify-email' | 'shared-file'
   const [currentScreen, setCurrentScreen] = useState(initial.screen);
   const [user, setUser] = useState(null);
   const [pendingEmail, setPendingEmail] = useState('');
@@ -116,16 +108,24 @@ function App() {
   if (currentScreen === 'reset-password') {
     return <ResetPasswordScreen token={initial.token} onGoToLogin={() => navigate('login')} />;
   }
+  if (currentScreen === 'shared-file') {
+    return <SharedFileScreen token={initial.token} onGoToLogin={() => navigate('login')} />;
+  }
 
-  // Vista dedicada del Administrador del Sitio Web
   const isUserAdmin =
     user?.rol?.toLowerCase() === 'admin' || user?.rol?.toLowerCase() === 'administrador';
   if (currentScreen === 'admin' || isUserAdmin) {
-    return <AdminView user={user || DEMO_ADMIN_USER} onLogout={handleLogout} />;
+    return <AdminView user={user} onLogout={handleLogout} />;
   }
 
   if (currentScreen === 'dashboard' || user) {
-    return <DashboardScreen user={user || DEMO_CLIENT_USER} onLogout={handleLogout} />;
+    return (
+      <DashboardScreen
+        user={user || DEMO_CLIENT_USER}
+        onLogout={handleLogout}
+        onRefreshUser={async () => setUser(await getProfile())}
+      />
+    );
   }
 
   if (currentScreen === 'check-email') {

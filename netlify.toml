@@ -1,0 +1,12 @@
+# Configuracion de despliegue para Netlify
+[build]
+  base = "Front_"
+  publish = "dist"
+  command = "npm run build"
+
+# Regla de redireccion para Single Page Application (React Router / rutas cliente)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+

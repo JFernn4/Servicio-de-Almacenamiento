@@ -1,12 +1,36 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
 
 /**
- * Token de sesión del usuario.
+ * Genera una huella criptográfica corta (HMAC-SHA256) derivada del hash de contraseña actual.
+ * Permite:
+ * 1) Que un enlace de recuperación de contraseña quede invalidado automáticamente tras su primer uso.
+ * 2) Que todas las sesiones JWT previas se cierren automáticamente al cambiar la contraseña.
  */
-export function signToken(user) {
+export function getPasswordFingerprint(contrasenaHash) {
+  if (!contrasenaHash) return null;
+  return crypto
+    .createHmac('sha256', config.jwt.secret)
+    .update(String(contrasenaHash))
+    .digest('hex')
+    .slice(0, 16);
+}
+
+/**
+ * Token de sesión del usuario. Incluye la huella `pwd` de la contraseña actual
+ * para invalidar sesiones anteriores si el usuario cambia su clave.
+ */
+export function signToken(user, contrasenaHash = null) {
+  const pwd = getPasswordFingerprint(contrasenaHash ?? user.contrasena_hash);
   return jwt.sign(
-    { id: user.id, correo: user.correo, nombre: user.nombre, rol: user.rol },
+    {
+      id: user.id,
+      correo: user.correo,
+      nombre: user.nombre,
+      rol: user.rol,
+      ...(pwd ? { pwd } : {}),
+    },
     config.jwt.secret,
     { expiresIn: config.jwt.expiresIn }
   );
@@ -27,9 +51,20 @@ export function verifyToken(token) {
 
 /**
  * Token para un enlace de correo. `tipo` es uno de TOKEN_PURPOSES.
+ * Si el objeto `user` incluye `contrasena_hash`, adjunta la huella `pwd` para garantizar un solo uso.
  */
 export function signPurposeToken(user, tipo, expiresIn) {
-  return jwt.sign({ id: user.id, correo: user.correo, tipo }, config.jwt.secret, { expiresIn });
+  const pwd = getPasswordFingerprint(user.contrasena_hash);
+  return jwt.sign(
+    {
+      id: user.id,
+      correo: user.correo,
+      tipo,
+      ...(pwd ? { pwd } : {}),
+    },
+    config.jwt.secret,
+    { expiresIn }
+  );
 }
 
 /**

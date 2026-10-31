@@ -73,7 +73,7 @@ function SuscripcionesView() {
   ];
 
   return (
-    <div style={{ padding: '32px 40px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
+    <div style={{ flex: 1, minHeight: 0, padding: '32px 40px 80px 40px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
       {/* Encabezado */}
       <div style={{ textAlign: 'center', maxWidth: 680, margin: '0 auto 36px' }}>
         <div style={{

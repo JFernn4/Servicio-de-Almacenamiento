@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificación de Correo y Recuperación de Contraseña - VinCloud</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: #F5F4F4;
+      color: #1E293B;
+      padding: 24px 16px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: #FFFFFF;
+      max-width: 780px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 20px rgba(59, 10, 31, 0.08);
+      overflow: hidden;
+    }
+
+    .nav-bar {
+      background: #250513;
+      padding: 10px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .nav-links a {
+      color: #F8FAFC;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      transition: background 0.15s;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      background: #7D1535;
+      color: #FFFFFF;
+    }
+
+    .db-status {
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #F8FAFC;
+    }
+
+    .db-status.online {
+      background: #DCFCE7;
+      color: #166534;
+    }
+
+    .db-status.offline {
+      background: #FEE2E2;
+      color: #991B1B;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #3B0A1F 0%, #7D1535 100%);
+      color: #FFFFFF;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .header p {
+      font-size: 13px;
+      opacity: 0.9;
+      margin-top: 6px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 99px;
+      margin-top: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .content {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #3B0A1F;
+      margin-bottom: 6px;
+    }
+
+    .section-desc {
+      font-size: 12.5px;
+      color: #64748B;
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #3B0A1F;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13.5px;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      background: #FFFFFF;
+      color: #1E293B;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #7D1535;
+    }
+
+    button {
+      width: 100%;
+      background: #7D1535;
+      color: #FFFFFF;
+      border: none;
+      padding: 11px 16px;
+      font-size: 13.5px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #5D0F27;
+    }
+
+    button:disabled {
+      background: #94A3B8;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #3B0A1F;
+    }
+
+    .feedback {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      line-height: 1.4;
+      display: none;
+      word-break: break-all;
+    }
+
+    .feedback.success {
+      display: block;
+      background: #DCFCE7;
+      color: #166534;
+      border: 1px solid #BBF7D0;
+    }
+
+    .feedback.error {
+      display: block;
+      background: #FEE2E2;
+      color: #991B1B;
+      border: 1px solid #FECACA;
+    }
+
+    .feedback.info {
+      display: block;
+      background: #FDF2F4;
+      color: #3B0A1F;
+      border: 1px solid #FBCFE8;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="nav-bar">
+      <div class="nav-links">
+        <a href="panel-administrador.html">1. Panel Admin</a>
+        <a href="registro-roles.html">2. Registro y Roles</a>
+        <a href="verificacion-correo.html" class="active">3. Verificación y Claves</a>
+        <a href="subida-archivos.html">4. Subida y Archivos</a>
+        <a href="suscripciones-decorator.html">5. Suscripciones (Decorator)</a>
+      </div>
+      <div id="dbStatusBadge" class="db-status">Verificando BD...</div>
+    </nav>
+
+    <div class="header">
+      <h1>VinCloud — Verificación de Correo y Recuperación de Contraseña</h1>
+      <p>Actualiza <code>usuario.correo_verificado</code> y <code>usuario.contrasena_hash</code> en PostgreSQL</p>
+      <div class="badge">Tokens de Propósito de Un Solo Uso + Invalidación de Sesiones</div>
+    </div>
+
+    <div class="content">
+      <!-- Sección 1: Validar Token de Verificación -->
+      <div class="section">
+        <h2 class="section-title">1. Verificar Cuenta con Token en PostgreSQL (<code>POST /api/auth/verify</code>)</h2>
+        <p class="section-desc">
+          Introduce el token de verificación (si acabas de registrar un usuario en la pestaña 2 o reenviar correo, se autocompleta automáticamente).
+        </p>
+
+        <form id="verifyForm">
+          <div class="form-group">
+            <label for="tokenInput">Token de Verificación JWT</label>
+            <input type="text" id="tokenInput" placeholder="Pega el token JWT aquí..." required />
+          </div>
+          <button type="submit" id="btnVerify">Verificar Cuenta en Base de Datos</button>
+        </form>
+
+        <div id="verifyFeedback" class="feedback"></div>
+      </div>
+
+      <!-- Sección 2: Reenviar Correo de Verificación -->
+      <div class="section">
+        <h2 class="section-title">2. Generar / Reenviar Token de Verificación (<code>POST /api/auth/resend-verification</code>)</h2>
+        <p class="section-desc">
+          Ingresa un correo registrado no verificado para emitir un nuevo token y autocompletarlo arriba.
+        </p>
+
+        <form id="resendForm">
+          <div class="form-group">
+            <label for="emailInput">Correo Electrónico</label>
+            <input type="email" id="emailInput" placeholder="usuario@correo.com" required />
+          </div>
+          <button type="submit" id="btnResend" class="btn-secondary">Reenviar Correo y Autocompletar Token</button>
+        </form>
+
+        <div id="resendFeedback" class="feedback"></div>
+      </div>
+
+      <!-- Sección 3: Recuperar y Restablecer Contraseña (Un Solo Uso) -->
+      <div class="section">
+        <h2 class="section-title">3. Recuperación de Contraseña de Un Solo Uso (<code>/forgot-password</code> y <code>/reset-password</code>)</h2>
+        <p class="section-desc">
+          Comprueba que al restablecer la contraseña en PostgreSQL: <strong>1)</strong> el token de recuperación queda invalidado inmediatamente si intentas usarlo una segunda vez, y <strong>2)</strong> todas las sesiones abiertas previamente se cierran automáticamente.
+        </p>
+
+        <form id="forgotForm" style="margin-bottom: 14px;">
+          <div class="form-group">
+            <label for="forgotEmail">Paso A: Solicitar enlace de recuperación para el correo</label>
+            <input type="email" id="forgotEmail" placeholder="usuario@correo.com" required />
+          </div>
+          <button type="submit" class="btn-secondary">Solicitar Enlace de Recuperación (Revisa consola si no hay SMTP)</button>
+        </form>
+
+        <form id="resetForm">
+          <div class="form-group">
+            <label for="resetTokenInput">Paso B: Token de Recuperación (<code>recuperacion_contrasena</code>)</label>
+            <input type="text" id="resetTokenInput" placeholder="Pega el token del enlace ?mode=reset-password&token=..." required />
+          </div>
+          <div class="form-group">
+            <label for="newPasswordInput">Nueva Contraseña</label>
+            <input type="password" id="newPasswordInput" placeholder="Mínimo 6 caracteres" required />
+          </div>
+          <button type="submit">Restablecer Contraseña en PostgreSQL</button>
+        </form>
+
+        <div id="resetFeedback" class="feedback"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:5000/api';
+    const API_AUTH = `${API_BASE}/auth`;
+
+    async function checkDatabaseStatus() {
+      const badge = document.getElementById('dbStatusBadge');
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        const data = await res.json();
+        if (res.ok && data.status === 'ok') {
+          badge.className = 'db-status online';
+          badge.textContent = `🟢 BD Conectada (${data.dbName || 'almacenamiento_db'})`;
+        } else {
+          badge.className = 'db-status offline';
+          badge.textContent = '🔴 BD Desconectada';
+        }
+      } catch {
+        badge.className = 'db-status offline';
+        badge.textContent = '🔴 Backend Apagado (5000)';
+      }
+    }
+
+    function showFeedback(elementId, type, message) {
+      const el = document.getElementById(elementId);
+      el.className = `feedback ${type}`;
+      el.textContent = message;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkDatabaseStatus();
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get('token');
+      const savedVerifToken = localStorage.getItem('vincloud_last_verification_token');
+      const lastEmail = localStorage.getItem('vincloud_last_email');
+
+      if (tokenFromUrl) {
+        document.getElementById('tokenInput').value = tokenFromUrl;
+        showFeedback('verifyFeedback', 'info', 'Token detectado automáticamente desde la URL.');
+      } else if (savedVerifToken) {
+        document.getElementById('tokenInput').value = savedVerifToken;
+        showFeedback('verifyFeedback', 'info', 'Token de verificación recuperado automáticamente del último registro en localStorage.');
+      }
+
+      if (lastEmail) {
+        document.getElementById('emailInput').value = lastEmail;
+        document.getElementById('forgotEmail').value = lastEmail;
+      }
+    });
+
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const token = document.getElementById('tokenInput').value.trim();
+      const btn = document.getElementById('btnVerify');
+      btn.disabled = true;
+
+      try {
+        const response = await fetch(`${API_AUTH}/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+          localStorage.removeItem('vincloud_last_verification_token');
+          showFeedback('verifyFeedback', 'success', `✅ ${data.message} (${data.user.correo} -> correo_verificado = true en PostgreSQL)`);
+        } else {
+          showFeedback('verifyFeedback', 'error', `❌ ${data.error || 'No se pudo verificar el token.'}`);
+        }
+      } catch {
+        showFeedback('verifyFeedback', 'error', '❌ Error de conexión con el servidor backend.');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('resendForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const correo = document.getElementById('emailInput').value.trim();
+      const btn = document.getElementById('btnResend');
+      btn.disabled = true;
+
+      try {
+        const response = await fetch(`${API_AUTH}/resend-verification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ correo })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+          if (data.verificationToken) {
+            document.getElementById('tokenInput').value = data.verificationToken;
+            localStorage.setItem('vincloud_last_verification_token', data.verificationToken);
+          }
+          showFeedback('resendFeedback', 'success', `✉️ ${data.message} (Token autocompletado en la sección 1).`);
+        } else {
+          showFeedback('resendFeedback', 'error', `❌ ${data.error || 'Error al reenviar correo.'}`);
+        }
+      } catch {
+        showFeedback('resendFeedback', 'error', '❌ Error de conexión con el servidor backend.');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const correo = document.getElementById('forgotEmail').value.trim();
+      try {
+        const res = await fetch(`${API_AUTH}/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ correo })
+        });
+        const data = await res.json();
+        showFeedback('resetFeedback', res.ok ? 'info' : 'error', data.message || data.error);
+      } catch {
+        showFeedback('resetFeedback', 'error', '❌ Error de conexión con el servidor.');
+      }
+    });
+
+    document.getElementById('resetForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const token = document.getElementById('resetTokenInput').value.trim();
+      const nuevaContrasena = document.getElementById('newPasswordInput').value;
+      try {
+        const res = await fetch(`${API_AUTH}/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, nuevaContrasena })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showFeedback('resetFeedback', 'success', `✅ ${data.message} (Si intentas enviar este mismo token otra vez, será rechazado por ser de un solo uso).`);
+        } else {
+          showFeedback('resetFeedback', 'error', `❌ ${data.error}`);
+        }
+      } catch {
+        showFeedback('resetFeedback', 'error', '❌ Error de conexión con el servidor.');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -29,10 +29,19 @@ export async function getProfile(req, res) {
 }
 
 export async function verifyEmail(req, res) {
-  const user = await accountService.verifyEmail(validateVerifyEmail(req.body));
+  const user = await accountService.verifyEmail(validateVerifyEmail(req.body, req.query));
   res.status(200).json({
     message: 'Correo electrónico verificado exitosamente. Tu cuenta ahora tiene acceso completo.',
+    verified: true,
     user,
+  });
+}
+
+export async function resendVerification(req, res) {
+  const result = await accountService.resendVerification(validateForgotPassword(req.body));
+  res.status(200).json({
+    message: 'Correo de verificación reenviado exitosamente. Por favor revisa tu bandeja de entrada.',
+    ...result,
   });
 }
 
@@ -50,3 +59,5 @@ export async function resetPassword(req, res) {
     message: 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión con tu nueva contraseña.',
   });
 }
+
+

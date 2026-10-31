@@ -3,6 +3,7 @@ import { config } from '../config/env.js';
 import { welcomeEmail } from '../templates/welcomeEmail.js';
 import { verificationEmail } from '../templates/verificationEmail.js';
 import { passwordResetEmail } from '../templates/passwordResetEmail.js';
+import { shareInvitationEmail } from '../templates/shareInvitationEmail.js';
 
 const transporter = nodemailer.createTransport({
   host: config.mail.host,
@@ -60,4 +61,13 @@ export function sendPasswordResetEmail(correo, nombre, token) {
   const resetUrl = frontendLink('reset-password', token);
   logSimulatedLink('Restablecimiento', correo, resetUrl);
   return sendEmail({ to: correo, ...passwordResetEmail({ nombre, resetUrl }) });
+}
+
+export function sendShareInvitationEmail({ correoDestinatario, nombreDestinatario, nombreRemitente, nombreArchivo, token }) {
+  const shareUrl = frontendLink('shared-file', token);
+  logSimulatedLink('Invitacion a Archivo', correoDestinatario, shareUrl);
+  return sendEmail({
+    to: correoDestinatario,
+    ...shareInvitationEmail({ nombreDestinatario, nombreRemitente, nombreArchivo, shareUrl }),
+  });
 }

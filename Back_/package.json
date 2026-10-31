@@ -7,8 +7,11 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "db:init": "node src/scripts/initDb.js",
-    "init-db": "node src/scripts/initDb.js",
-    "test:email": "node src/scripts/testEmail.js"
+    "test:email": "node src/scripts/testEmail.js",
+    "test:email:preview": "node src/scripts/testEmail.js --preview",
+    "test:email:verify": "node src/scripts/testEmail.js --verify",
+    "test:email:verify:preview": "node src/scripts/testEmail.js --verify --preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
@@ -29,6 +32,7 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.12.1",
+    "multer": "^2.4.0",
     "nodemailer": "^10.0.11",
     "pg": "^8.23.0"
   }

@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prueba de Subida y Gestión de Archivos - VinCloud</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: #F5F4F4;
+      color: #1E293B;
+      padding: 24px 16px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: #FFFFFF;
+      max-width: 920px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 20px rgba(59, 10, 31, 0.08);
+      overflow: hidden;
+    }
+
+    .nav-bar {
+      background: #250513;
+      padding: 10px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .nav-links a {
+      color: #F8FAFC;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      transition: background 0.15s;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      background: #7D1535;
+      color: #FFFFFF;
+    }
+
+    .db-status {
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #F8FAFC;
+    }
+
+    .db-status.online {
+      background: #DCFCE7;
+      color: #166534;
+    }
+
+    .db-status.offline {
+      background: #FEE2E2;
+      color: #991B1B;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #3B0A1F 0%, #7D1535 100%);
+      color: #FFFFFF;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .header p {
+      font-size: 13px;
+      opacity: 0.9;
+      margin-top: 6px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 99px;
+      margin-top: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .content {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #3B0A1F;
+      margin-bottom: 6px;
+    }
+
+    .section-desc {
+      font-size: 12.5px;
+      color: #64748B;
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 640px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #3B0A1F;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="file"],
+    select {
+      width: 100%;
+      padding: 9px 12px;
+      font-size: 13px;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      background: #FFFFFF;
+      color: #1E293B;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #7D1535;
+    }
+
+    .btn {
+      background-color: #7D1535;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn:hover {
+      background-color: #5D0F27;
+    }
+
+    .btn:disabled {
+      background-color: #94A3B8;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background-color: #3B0A1F;
+    }
+
+    .btn-secondary:hover {
+      background-color: #250513;
+    }
+
+    .btn-outline {
+      background-color: #FFFFFF;
+      color: #7D1535;
+      border: 1px solid #7D1535;
+    }
+
+    .btn-outline:hover {
+      background-color: #FDF2F4;
+    }
+
+    .btn-danger {
+      background-color: #FEE2E2;
+      color: #991B1B;
+      border: 1px solid #FECACA;
+    }
+
+    .btn-danger:hover {
+      background-color: #FECACA;
+    }
+
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .quota-bar-container {
+      margin-top: 12px;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .quota-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #3B0A1F;
+      margin-bottom: 6px;
+    }
+
+    .quota-track {
+      width: 100%;
+      height: 8px;
+      background: #E2E8F0;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .quota-fill {
+      height: 100%;
+      background: #7D1535;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .breadcrumb {
+      font-size: 13px;
+      font-weight: 700;
+      color: #3B0A1F;
+      background: #FDF2F4;
+      border: 1px solid #FBCFE8;
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-wrapper {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th {
+      background: #3B0A1F;
+      color: #FFFFFF;
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #F1F5F9;
+      color: #1E293B;
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .item-type {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .type-folder {
+      background: #FDF2F4;
+      color: #7D1535;
+    }
+
+    .type-file {
+      background: #EFF6FF;
+      color: #1D4ED8;
+    }
+
+    .actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .feedback {
+      padding: 11px 14px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      line-height: 1.4;
+      display: none;
+    }
+
+    .feedback.success {
+      display: block;
+      background: #DCFCE7;
+      color: #166534;
+      border: 1px solid #BBF7D0;
+    }
+
+    .feedback.error {
+      display: block;
+      background: #FEE2E2;
+      color: #991B1B;
+      border: 1px solid #FECACA;
+    }
+
+    .feedback.info {
+      display: block;
+      background: #FDF2F4;
+      color: #7D1535;
+      border: 1px solid #FBCFE8;
+    }
+
+    .empty-msg {
+      padding: 24px;
+      text-align: center;
+      color: #64748B;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="nav-bar">
+      <div class="nav-links">
+        <a href="panel-administrador.html">1. Panel Admin</a>
+        <a href="registro-roles.html">2. Registro y Roles</a>
+        <a href="verificacion-correo.html">3. Verificación y Claves</a>
+        <a href="subida-archivos.html" class="active">4. Subida y Archivos</a>
+        <a href="suscripciones-decorator.html">5. Suscripciones (Decorator)</a>
+      </div>
+      <div id="dbStatusBadge" class="db-status">Verificando BD...</div>
+    </nav>
+
+    <div class="header">
+      <h1>VinCloud — Subida de Archivos, Carpetas, Papelera e Invitaciones</h1>
+      <p>Conectado a PostgreSQL (tablas <code>archivo</code>, <code>carpeta</code> y <code>usuario</code>) y disco físico con Multer</p>
+      <div class="badge">Almacenamiento, Papelera y Enlaces de Invitado</div>
+    </div>
+
+    <div class="content">
+      <div id="globalFeedback" class="feedback"></div>
+
+      <!-- 1. Sesión y Cuota -->
+      <div class="section">
+        <div class="section-title">1. Autenticación y Cuota de Almacenamiento en PostgreSQL</div>
+        <div class="section-desc">
+          Inicia sesión o usa el token sincronizado automáticamente desde las otras pestañas para operar sobre <code>/api/storage</code>.
+        </div>
+
+        <form id="loginForm" class="grid-2">
+          <div class="form-group">
+            <label for="loginCorreo">Correo electrónico</label>
+            <input type="email" id="loginCorreo" placeholder="usuario@correo.com" required>
+          </div>
+          <div class="form-group">
+            <label for="loginPass">Contraseña</label>
+            <input type="password" id="loginPass" placeholder="Contraseña" required>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 4px;">
+            <button type="submit" class="btn btn-secondary" id="btnLogin">Iniciar Sesión y Cargar Archivos de PostgreSQL</button>
+          </div>
+        </form>
+
+        <div class="form-group" style="margin-top: 10px; margin-bottom: 0;">
+          <label for="jwtToken">Token JWT activo</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="jwtToken" placeholder="Pega aquí un Bearer token o inicia sesión arriba...">
+            <button type="button" class="btn btn-outline" id="btnSyncProfile">Actualizar Cuota</button>
+          </div>
+        </div>
+
+        <div class="quota-bar-container">
+          <div class="quota-header">
+            <span id="userLabel">Sin sesión activa</span>
+            <span id="quotaText">0 B / 5 GB (0%)</span>
+          </div>
+          <div class="quota-track">
+            <div class="quota-fill" id="quotaFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Subir Archivo y Crear Carpeta -->
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-title">2. Subir Archivo (Multer + Registro en BD)</div>
+          <div class="section-desc">
+            Envía <code>multipart/form-data</code> a <code>POST /api/storage/upload</code> e incrementa <code>usuario.espacio_consumido</code>.
+          </div>
+
+          <form id="uploadForm">
+            <div class="form-group">
+              <label for="fileInput">Seleccionar archivo(s) según tu suscripción</label>
+              <input type="file" id="fileInput" required>
+            </div>
+            <button type="submit" class="btn" id="btnUpload" style="width: 100%;">Subir Archivo a PostgreSQL</button>
+          </form>
+        </div>
+
+        <div class="section">
+          <div class="section-title">3. Nueva Carpeta en PostgreSQL</div>
+          <div class="section-desc">
+            Inserta una carpeta en la tabla <code>carpeta</code> mediante <code>POST /api/storage/folders</code>.
+          </div>
+
+          <form id="folderForm">
+            <div class="form-group">
+              <label for="folderName">Nombre de la carpeta</label>
+              <input type="text" id="folderName" placeholder="Ej. Documentos 2026" maxlength="255" required>
+            </div>
+            <button type="submit" class="btn btn-secondary" id="btnCreateFolder" style="width: 100%;">Crear Carpeta</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 3. Explorador de Archivos y Carpetas -->
+      <div class="section">
+        <div class="section-title">4. Explorador de Mis Archivos en Base de Datos</div>
+        <div class="section-desc">
+          Navega por carpetas, busca con <code>ILIKE</code>, consulta recientes, envía a papelera, restaura o genera enlaces de invitación para el rol Invitado.
+        </div>
+
+        <div class="toolbar">
+          <div class="breadcrumb">
+            <span id="currentFolderLabel">📁 Ubicación: Raíz (/)</span>
+            <button type="button" class="btn btn-outline btn-sm" id="btnGoRoot" style="display: none;">Volver a Raíz</button>
+          </div>
+
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <input type="text" id="searchInput" placeholder="Buscar archivo..." style="width: 150px; padding: 6px 10px;">
+            <button type="button" class="btn btn-outline btn-sm" id="btnSearch">Buscar</button>
+            <button type="button" class="btn btn-outline btn-sm" id="btnRecent">Recientes</button>
+            <button type="button" class="btn btn-outline btn-sm" id="btnTrash">🗑️ Papelera</button>
+            <button type="button" class="btn btn-danger btn-sm" id="btnEmptyTrash" style="display: none;">Vaciar Papelera</button>
+            <button type="button" class="btn btn-outline btn-sm" id="btnRefresh">Recargar</button>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Nombre</th>
+                <th>Tamaño / Info</th>
+                <th>Fecha</th>
+                <th style="text-align: right;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="storageTableBody">
+              <tr>
+                <td colspan="5" class="empty-msg">Inicia sesión o ingresa un token para listar tus archivos de PostgreSQL.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:5000/api';
+    let currentFolderId = null;
+    const tokenInput = document.getElementById('jwtToken');
+
+    async function checkDatabaseStatus() {
+      const badge = document.getElementById('dbStatusBadge');
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        const data = await res.json();
+        if (res.ok && data.status === 'ok') {
+          badge.className = 'db-status online';
+          badge.textContent = `🟢 BD Conectada (${data.dbName || 'almacenamiento_db'})`;
+        } else {
+          badge.className = 'db-status offline';
+          badge.textContent = '🔴 BD Desconectada';
+        }
+      } catch {
+        badge.className = 'db-status offline';
+        badge.textContent = '🔴 Backend Apagado (5000)';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkDatabaseStatus();
+      const savedToken = localStorage.getItem('vincloud_token');
+      const lastEmail = localStorage.getItem('vincloud_last_email');
+      if (lastEmail) {
+        document.getElementById('loginCorreo').value = lastEmail;
+      }
+      if (savedToken) {
+        tokenInput.value = savedToken;
+        refreshAll();
+      }
+    });
+
+    function getToken() {
+      return tokenInput.value.trim();
+    }
+
+    function showFeedback(type, message) {
+      const el = document.getElementById('globalFeedback');
+      el.className = `feedback ${type}`;
+      el.textContent = message;
+    }
+
+    function formatBytes(bytes = 0) {
+      const num = Number(bytes) || 0;
+      if (num === 0) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(num) / Math.log(1024));
+      return `${(num / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
+    }
+
+    function updateFolderHeader(carpetaActual) {
+      document.getElementById('btnEmptyTrash').style.display = 'none';
+      if (carpetaActual) {
+        currentFolderId = carpetaActual.id;
+        document.getElementById('currentFolderLabel').textContent = `📂 Carpeta: ${carpetaActual.nombre} (ID: ${carpetaActual.id})`;
+        document.getElementById('btnGoRoot').style.display = 'inline-block';
+      } else {
+        currentFolderId = null;
+        document.getElementById('currentFolderLabel').textContent = '📁 Ubicación: Raíz (/)';
+        document.getElementById('btnGoRoot').style.display = 'none';
+      }
+    }
+
+    async function loadProfileQuota() {
+      const token = getToken();
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Token inválido.');
+
+        const u = data.user;
+        const consumido = Number(u.espacioConsumido) || 0;
+        const disponible = Number(u.espacioDisponible) || 5368709120;
+        const pct = disponible > 0 ? Math.min(100, Math.round((consumido / disponible) * 100)) : 0;
+
+        document.getElementById('userLabel').textContent = `${u.nombre} (${u.rol}) — ${u.correo}`;
+        document.getElementById('quotaText').textContent = `${formatBytes(consumido)} / ${formatBytes(disponible)} (${pct}%)`;
+        document.getElementById('quotaFill').style.width = `${pct}%`;
+      } catch (err) {
+        showFeedback('error', `Error de sesión: ${err.message}`);
+      }
+    }
+
+    async function loadDirectory(carpetaId = currentFolderId) {
+      const token = getToken();
+      if (!token) return;
+
+      try {
+        const url = carpetaId
+          ? `${API_BASE}/storage/files?carpetaId=${carpetaId}`
+          : `${API_BASE}/storage/files`;
+
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al cargar directorio.');
+
+        updateFolderHeader(data.carpetaActual);
+        renderTable(data.carpetas || [], data.archivos || [], false);
+      } catch (err) {
+        showFeedback('error', err.message);
+      }
+    }
+
+    async function loadTrashView() {
+      const token = getToken();
+      if (!token) return showFeedback('error', 'Inicia sesión primero.');
+
+      try {
+        const res = await fetch(`${API_BASE}/storage/trash`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al cargar papelera.');
+
+        const archivos = data.archivos || [];
+        document.getElementById('currentFolderLabel').textContent = `🗑️ Papelera (${archivos.length} elemento(s))`;
+        document.getElementById('btnGoRoot').style.display = 'inline-block';
+        document.getElementById('btnEmptyTrash').style.display = archivos.length > 0 ? 'inline-block' : 'none';
+        renderTable([], archivos, true);
+      } catch (err) {
+        showFeedback('error', err.message);
+      }
+    }
+
+    async function refreshAll() {
+      await Promise.all([loadProfileQuota(), loadDirectory(currentFolderId)]);
+    }
+
+    function renderTable(carpetas, archivos, isTrash = false) {
+      const tbody = document.getElementById('storageTableBody');
+      tbody.innerHTML = '';
+
+      if (carpetas.length === 0 && archivos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty-msg">${isTrash ? 'Tu papelera está vacía.' : 'No hay carpetas ni archivos en esta ubicación.'}</td></tr>`;
+        return;
+      }
+
+      carpetas.forEach((c) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="item-type type-folder">CARPETA</span></td>
+          <td><strong>📁 ${escapeHtml(c.nombre)}</strong></td>
+          <td>${c.total_elementos ?? 0} elemento(s)</td>
+          <td>${String(c.fecha_creacion || '').slice(0, 10)}</td>
+          <td class="actions">
+            <button type="button" class="btn btn-outline btn-sm" onclick="enterFolder(${c.id})">Abrir</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="handleRenameFolder(${c.id}, '${escapeAttr(c.nombre)}')">Renombrar</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="handleDeleteFolder(${c.id})">Eliminar</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      archivos.forEach((a) => {
+        const tr = document.createElement('tr');
+        const dateStr = String((isTrash ? a.fecha_eliminacion : a.fecha_subida) || a.fecha_subida || '').slice(0, 10);
+        const actionsHtml = isTrash
+          ? `
+            <button type="button" class="btn btn-outline btn-sm" onclick="handleRestoreFile(${a.id})">Restaurar</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="handlePermanentDeleteFile(${a.id})">Eliminar Definitivo</button>
+          `
+          : `
+            <button type="button" class="btn btn-outline btn-sm" onclick="handlePreviewFile(${a.id})">Ver</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="handleShareFile(${a.id}, '${escapeAttr(a.nombre)}')">Invitar / Compartir</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="handleDownloadFile(${a.id}, '${escapeAttr(a.nombre)}')">Descargar</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="handleRenameFile(${a.id}, '${escapeAttr(a.nombre)}')">Renombrar</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="handleDeleteFile(${a.id})">Papelera</button>
+          `;
+
+        tr.innerHTML = `
+          <td><span class="item-type type-file">ARCHIVO</span></td>
+          <td>📄 ${escapeHtml(a.nombre)}</td>
+          <td>${formatBytes(a.tamano)}</td>
+          <td>${dateStr}</td>
+          <td class="actions">${actionsHtml}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function escapeHtml(str = '') {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function escapeAttr(str = '') {
+      return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btnLogin');
+      btn.disabled = true;
+
+      const correo = document.getElementById('loginCorreo').value.trim();
+      const contrasena = document.getElementById('loginPass').value;
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ correo, contrasena })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Credenciales inválidas.');
+
+        tokenInput.value = data.token;
+        localStorage.setItem('vincloud_token', data.token);
+        localStorage.setItem('vincloud_last_email', data.user.correo);
+        showFeedback('success', `✅ Sesión iniciada como ${data.user.nombre}.`);
+        currentFolderId = null;
+        await refreshAll();
+      } catch (err) {
+        showFeedback('error', err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('btnSyncProfile').addEventListener('click', () => {
+      const token = getToken();
+      if (token) localStorage.setItem('vincloud_token', token);
+      refreshAll();
+    });
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const token = getToken();
+      if (!token) return showFeedback('error', 'Inicia sesión antes de subir un archivo.');
+
+      const fileInput = document.getElementById('fileInput');
+      if (!fileInput.files.length) return;
+
+      const formData = new FormData();
+      formData.append('archivo', fileInput.files[0]);
+      if (currentFolderId) {
+        formData.append('carpetaId', currentFolderId);
+      }
+
+      const btn = document.getElementById('btnUpload');
+      btn.disabled = true;
+      btn.textContent = 'Subiendo...';
+
+      try {
+        const res = await fetch(`${API_BASE}/storage/upload`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al subir archivo.');
+
+        fileInput.value = '';
+        showFeedback('success', `✅ ${data.message} (${data.archivo.nombre} - ${formatBytes(data.archivo.tamano)})`);
+        await refreshAll();
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Subir Archivo a PostgreSQL';
+      }
+    });
+
+    document.getElementById('folderForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const token = getToken();
+      if (!token) return showFeedback('error', 'Inicia sesión antes de crear una carpeta.');
+
+      const nombre = document.getElementById('folderName').value.trim();
+      if (!nombre) return;
+
+      const btn = document.getElementById('btnCreateFolder');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/storage/folders`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ nombre, carpetaPadreId: currentFolderId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al crear carpeta.');
+
+        document.getElementById('folderName').value = '';
+        showFeedback('success', `📁 ${data.message} (${data.carpeta.nombre})`);
+        await loadDirectory(currentFolderId);
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    window.enterFolder = (id) => loadDirectory(id);
+    document.getElementById('btnGoRoot').addEventListener('click', () => loadDirectory(null));
+    document.getElementById('btnRefresh').addEventListener('click', () => refreshAll());
+    document.getElementById('btnTrash').addEventListener('click', () => loadTrashView());
+
+    document.getElementById('btnEmptyTrash').addEventListener('click', async () => {
+      if (!confirm('¿Vaciar permanentemente toda la papelera y liberar su espacio?')) return;
+      const token = getToken();
+
+      try {
+        const res = await fetch(`${API_BASE}/storage/trash`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al vaciar papelera.');
+
+        showFeedback('success', `🗑️ ${data.message} (${formatBytes(data.bytesLiberados)} liberados)`);
+        await loadProfileQuota();
+        await loadTrashView();
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    });
+
+    document.getElementById('btnSearch').addEventListener('click', async () => {
+      const token = getToken();
+      if (!token) return showFeedback('error', 'Inicia sesión primero.');
+      const q = document.getElementById('searchInput').value.trim();
+      if (!q) return loadDirectory(currentFolderId);
+
+      try {
+        const res = await fetch(`${API_BASE}/storage/files/search?q=${encodeURIComponent(q)}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error en búsqueda.');
+
+        document.getElementById('btnEmptyTrash').style.display = 'none';
+        document.getElementById('currentFolderLabel').textContent = `🔍 Búsqueda: "${q}"`;
+        document.getElementById('btnGoRoot').style.display = 'inline-block';
+        renderTable([], data.archivos || [], false);
+      } catch (err) {
+        showFeedback('error', err.message);
+      }
+    });
+
+    document.getElementById('btnRecent').addEventListener('click', async () => {
+      const token = getToken();
+      if (!token) return showFeedback('error', 'Inicia sesión primero.');
+
+      try {
+        const res = await fetch(`${API_BASE}/storage/files/recent?limit=10`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al consultar recientes.');
+
+        document.getElementById('btnEmptyTrash').style.display = 'none';
+        document.getElementById('currentFolderLabel').textContent = '🕒 Vista: Archivos Recientes';
+        document.getElementById('btnGoRoot').style.display = 'inline-block';
+        renderTable([], data.archivos || [], false);
+      } catch (err) {
+        showFeedback('error', err.message);
+      }
+    });
+
+    window.handlePreviewFile = async (id) => {
+      const token = getToken();
+      try {
+        const res = await fetch(`${API_BASE}/storage/files/${id}/view`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No se pudo visualizar el archivo.');
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank', 'noopener,noreferrer');
+        setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    };
+
+    window.handleShareFile = async (id, nombre) => {
+      const correo = prompt(
+        `Ingresa el correo del usuario registrado para enviarle invitación a "${nombre}" (o déjalo vacío para generar solo enlace público):`,
+        ''
+      );
+      if (correo === null) return;
+
+      const token = getToken();
+      try {
+        const res = await fetch(`${API_BASE}/storage/files/${id}/share`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ correo: correo.trim() })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al compartir archivo.');
+
+        showFeedback('success', `🔗 ${data.message} — Vigencia (${data.planAplicado}): ${data.vigenciaEnlace} — Enlace: ${data.shareUrl}`);
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    };
+
+    window.handleDownloadFile = async (id, nombre) => {
+      const token = getToken();
+      try {
+        const res = await fetch(`${API_BASE}/storage/files/${id}/download`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No se pudo descargar el archivo.');
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nombre;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    };
+
+    window.handleRenameFile = async (id, nombreActual) => {
+      const nuevoNombre = prompt('Nuevo nombre para el archivo:', nombreActual);
+      if (!nuevoNombre || nuevoNombre.trim() === nombreActual) return;
+
+      const token = getToken();
+      try {
+        const res = await fetch(`${API_BASE}/storage/files/${id}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ nuevoNombre: nuevoNombre.trim() })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al renombrar archivo.');
+
+        showFeedback('success', `✅ ${data.message} (${data.archivo.nombre})`);
+        await loadDirectory(currentFolderId);
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    };
+
+    window.handleDeleteFile = async (id) => {
+      if (!confirm('¿Mover este archivo a la papelera?')) return;
+
+      const token = getToken();
+      try {
+        const res = await fetch(`${API_BASE}/storage/files/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al mover archivo a la papelera.');
+
+        showFeedback('success', `🗑️ ${data.message}`);
+        await refreshAll();
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    };
+
+    window.handleRestoreFile = async (id) => {
+      const token = getToken();
+      try {
+        const res = await fetch(`${API_BASE}/storage/trash/${id}/restore`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al restaurar archivo.');
+
+        showFeedback('success', `♻️ ${data.message}`);
+        await loadTrashView();
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    };
+
+    window.handlePermanentDeleteFile = async (id) => {
+      if (!confirm('¿Eliminar definitivamente este archivo y liberar su cuota?')) return;
+
+      const token = getToken();
+      try {
+        const res = await fetch(`${API_BASE}/storage/trash/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al eliminar archivo.');
+
+        showFeedback('success', `🗑️ ${data.message} (${formatBytes(data.tamanoLiberado)} liberados)`);
+        await loadProfileQuota();
+        await loadTrashView();
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    };
+
+    window.handleRenameFolder = async (id, nombreActual) => {
+      const nuevoNombre = prompt('Nuevo nombre para la carpeta:', nombreActual);
+      if (!nuevoNombre || nuevoNombre.trim() === nombreActual) return;
+
+      const token = getToken();
+      try {
+        const res = await fetch(`${API_BASE}/storage/folders/${id}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ nuevoNombre: nuevoNombre.trim() })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al renombrar carpeta.');
+
+        showFeedback('success', `✅ ${data.message}`);
+        await loadDirectory(currentFolderId);
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    };
+
+    window.handleDeleteFolder = async (id) => {
+      if (!confirm('¿Eliminar esta carpeta y todo su contenido recursivamente?')) return;
+
+      const token = getToken();
+      try {
+        const res = await fetch(`${API_BASE}/storage/folders/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al eliminar carpeta.');
+
+        showFeedback('success', `🗑️ ${data.message} (${formatBytes(data.bytesLiberados)} liberados)`);
+        await refreshAll();
+      } catch (err) {
+        showFeedback('error', `❌ ${err.message}`);
+      }
+    };
+  </script>
+</body>
+</html>

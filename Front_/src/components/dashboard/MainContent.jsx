@@ -1,15 +1,15 @@
 import { NAV_ITEMS } from './navigation';
 import { colors } from '../../styles/theme';
 
-function MainContent({ activeTab }) {
+function MainContent({ activeTab, onRefreshUser }) {
   const item = NAV_ITEMS.find((navItem) => navItem.id === activeTab);
 
   if (item?.View) {
-    return <item.View />;
+    return <item.View onRefreshUser={onRefreshUser} />;
   }
 
   return (
-    <div style={{ padding: 48, textAlign: 'center', color: colors.subtle }}>
+    <div style={{ flex: 1, padding: 48, textAlign: 'center', color: colors.subtle }}>
       <h2>Vista en construcción</h2>
       <p>Has seleccionado: {item?.label ?? activeTab}</p>
     </div>
