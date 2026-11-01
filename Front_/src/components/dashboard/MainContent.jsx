@@ -5,7 +5,11 @@ function MainContent({ activeTab, onRefreshUser }) {
   const item = NAV_ITEMS.find((navItem) => navItem.id === activeTab);
 
   if (item?.View) {
-    return <item.View onRefreshUser={onRefreshUser} />;
+    return (
+      <div style={{ flex: 1, height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <item.View onRefreshUser={onRefreshUser} />
+      </div>
+    );
   }
 
   return (

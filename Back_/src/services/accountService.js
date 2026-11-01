@@ -5,7 +5,7 @@ import {
   getPasswordFingerprint,
 } from './tokenService.js';
 import { hashPassword } from './passwordService.js';
-import { sendPasswordResetEmail, sendVerificationEmail } from './emailService.js';
+import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from './emailService.js';
 import { HttpError } from '../utils/httpError.js';
 import {
   TOKEN_PURPOSES,
@@ -25,6 +25,11 @@ export async function verifyEmail({ token }) {
   if (!user) {
     throw new HttpError(404, 'Usuario no encontrado.');
   }
+
+  // Enviar correo de bienvenida tras confirmar exitosamente la cuenta
+  sendWelcomeEmail(user.correo, user.nombre).catch((err) => {
+    console.error('[EmailService] Error al enviar correo de bienvenida tras verificación:', err.message);
+  });
 
   return { id: user.id, nombre: user.nombre, correo: user.correo, correoVerificado: true };
 }
@@ -51,8 +56,12 @@ export async function resendVerification({ correo }) {
  */
 export async function requestPasswordReset({ correo }) {
   const user = await userRepository.findByEmailWithPassword(correo);
-  if (!user) return;
+  if (!user) {
+    console.warn(`[PasswordReset] Solicitud de recuperación ignorada: correo no registrado "${correo}"`);
+    return;
+  }
 
+  console.log(`[PasswordReset] Generando enlace de recuperación para "${user.nombre}" (${user.correo})`);
   const resetToken = signPurposeToken(user, TOKEN_PURPOSES.PASSWORD_RESET, PASSWORD_RESET_EXPIRES_IN);
 
   // En segundo plano: la respuesta no debe depender del envío del correo

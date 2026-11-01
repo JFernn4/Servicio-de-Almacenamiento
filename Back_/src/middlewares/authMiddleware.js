@@ -32,6 +32,15 @@ export async function authenticateToken(req, res, next) {
       );
     }
 
+    if (!currentUser.correo_verificado) {
+      return next(
+        new HttpError(
+          403,
+          'Debes verificar tu correo electrónico para acceder al sistema.'
+        )
+      );
+    }
+
     req.user = {
       ...payload,
       rol: currentUser.rol_nombre || payload.rol,

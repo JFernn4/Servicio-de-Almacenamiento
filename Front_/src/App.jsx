@@ -119,6 +119,18 @@ function App() {
   }
 
   if (currentScreen === 'dashboard' || user) {
+    // Si el usuario existe pero no está verificado, forzar la pantalla de verificación
+    if (user && !user.correoVerificado) {
+      return (
+        <CheckEmailScreen
+          email={user.correo}
+          onGoToLogin={() => navigate('login')}
+          onGoToRegister={() => navigate('register')}
+          onGoToHome={() => navigate('landing')}
+        />
+      );
+    }
+
     return (
       <DashboardScreen
         user={user || DEMO_CLIENT_USER}

@@ -1,7 +1,7 @@
 import * as userRepository from '../repositories/userRepository.js';
 import { signToken, signPurposeToken } from './tokenService.js';
 import { hashPassword, verifyPassword } from './passwordService.js';
-import { sendWelcomeEmail, sendVerificationEmail } from './emailService.js';
+import { sendVerificationEmail } from './emailService.js';
 import { HttpError } from '../utils/httpError.js';
 import {
   DEFAULT_ROLE,
@@ -62,15 +62,18 @@ export async function register({ nombre, correo, contrasena, tipoCuenta }) {
 
   const verificationToken = signPurposeToken(row, TOKEN_PURPOSES.EMAIL_VERIFICATION, EMAIL_VERIFICATION_EXPIRES_IN);
 
-  // En segundo plano: un fallo de correo no debe impedir el registro
-  sendWelcomeEmail(row.correo, row.nombre).catch((err) => {
-    console.error('[EmailService] Error al enviar correo de bienvenida:', err.message);
-  });
+  // Enviar correo de confirmación de cuenta
   sendVerificationEmail(row.correo, row.nombre, verificationToken).catch((err) => {
     console.error('[EmailService] Error al enviar correo de verificación:', err.message);
   });
 
-  return { ...buildSession(row), verificationToken };
+  // No emitimos token de sesión para obligar la verificación por correo antes de ingresar
+  const publicUser = toPublicUser(row);
+  return {
+    user: publicUser,
+    verificationToken,
+    requiresVerification: true,
+  };
 }
 
 export async function login({ correo, contrasena, tipoCuenta }) {
@@ -83,6 +86,14 @@ export async function login({ correo, contrasena, tipoCuenta }) {
 
   if (tipoCuenta === 'administrador' && String(row.rol_nombre || '').toLowerCase() !== 'administrador') {
     throw new HttpError(403, 'Acceso denegado. Esta cuenta no cuenta con permisos de Administrador.');
+  }
+
+  // La cuenta debe estar verificada por correo para poder iniciar sesión
+  if (!row.correo_verificado) {
+    throw new HttpError(
+      403,
+      'Debes verificar tu correo electrónico antes de ingresar. Por favor revisa tu bandeja de entrada o spam para activar tu cuenta.'
+    );
   }
 
   return buildSession(row);

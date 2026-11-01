@@ -108,7 +108,7 @@ function RecientesView({ onRefreshUser }) {
     : files;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, flex: 1, overflow: 'hidden' }}>
       <ViewHeader title="Recientes" subtitle="Tus archivos subidos o modificados recientemente">
         <SearchInput
           placeholder="Buscar en recientes..."
@@ -117,7 +117,7 @@ function RecientesView({ onRefreshUser }) {
         />
       </ViewHeader>
 
-      <div style={{ padding: 32, overflowY: 'auto' }}>
+      <div style={{ padding: '32px 32px 240px 32px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
         {feedback && (
           <div style={{ marginBottom: 20 }}>
             <Alert type={feedback.type}>{feedback.msg}</Alert>
