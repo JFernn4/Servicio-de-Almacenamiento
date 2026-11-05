@@ -18,7 +18,7 @@ function validate({ token, password, confirm }) {
 }
 
 /**
- * Se abre desde el enlace del correo (?mode=reset-password&token=...).
+ * Se abre desde el enlace del correo (?mode=reset-password&token=...)
  */
 function ResetPasswordScreen({ token, onGoToLogin }) {
   const [password, setPassword] = useState('');

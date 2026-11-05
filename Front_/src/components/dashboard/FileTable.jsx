@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '../ui/Icon';
 import { colors, sectionLabelStyle, resetButtonStyle } from '../../styles/theme';
 
@@ -19,6 +19,16 @@ function FileTable({
 }) {
   const [openMenuId, setOpenMenuId] = useState(null);
 
+  // Cerrar el menú contextual al hacer clic en cualquier lugar fuera
+  useEffect(() => {
+    if (!openMenuId) return;
+    function handleClickOutside() {
+      setOpenMenuId(null);
+    }
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, [openMenuId]);
+
   return (
     <div style={{ background: colors.surface, borderRadius: 12, border: `1px solid ${colors.border}`, overflow: 'visible' }}>
       <div style={{ ...sectionLabelStyle, display: 'flex', padding: '12px 24px', background: colors.surfaceAlt, borderBottom: `1px solid ${colors.border}`, borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
@@ -28,13 +38,25 @@ function FileTable({
         <div style={{ width: 32 }} />
       </div>
 
-      {files.map((file) => {
+      {files.map((file, index) => {
         const isMenuOpen = openMenuId === file.id;
+        // Si el archivo está entre los últimos de la lista, abre el menú hacia arriba para que no se recorte
+        const isNearBottom = index >= files.length - 2 && files.length > 2;
+
         return (
           <div
             key={file.id}
             className="file-row"
-            style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: '16px 24px', fontSize: 13, color: colors.muted, borderBottom: `1px solid ${colors.borderLight}` }}
+            style={{
+              position: 'relative',
+              zIndex: isMenuOpen ? 50 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              padding: '16px 24px',
+              fontSize: 13,
+              color: colors.muted,
+              borderBottom: `1px solid ${colors.borderLight}`,
+            }}
           >
             <div style={{ flex: 2, display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ background: `${file.color}22`, width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: file.color, fontSize: 10, fontWeight: 800 }}>
@@ -50,7 +72,10 @@ function FileTable({
                 <button
                   type="button"
                   aria-label={`Opciones de ${file.name}`}
-                  onClick={() => setOpenMenuId(isMenuOpen ? null : file.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenMenuId(isMenuOpen ? null : file.id);
+                  }}
                   style={{ ...resetButtonStyle, padding: 6, borderRadius: 6, color: colors.subtle }}
                 >
                   <Icon name="more" size={16} color={colors.subtle} />
@@ -58,16 +83,18 @@ function FileTable({
 
                 {isMenuOpen && (
                   <div
+                    onClick={(e) => e.stopPropagation()}
                     style={{
                       position: 'absolute',
                       right: 0,
-                      top: '100%',
-                      marginTop: 4,
+                      ...(isNearBottom
+                        ? { bottom: '100%', marginBottom: 6 }
+                        : { top: '100%', marginTop: 6 }),
                       background: colors.surface,
                       border: `1px solid ${colors.border}`,
                       borderRadius: 8,
-                      boxShadow: '0 8px 20px rgba(15, 23, 42, 0.1)',
-                      zIndex: 20,
+                      boxShadow: '0 10px 25px rgba(15, 23, 42, 0.18)',
+                      zIndex: 60,
                       minWidth: 180,
                       overflow: 'hidden',
                     }}

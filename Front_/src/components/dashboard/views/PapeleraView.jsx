@@ -97,7 +97,7 @@ function PapeleraView({ onRefreshUser }) {
   const isEmpty = files.length === 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, flex: 1, overflow: 'hidden' }}>
       <ViewHeader title="Papelera" subtitle={`${files.length} elementos eliminados`}>
         <button
           type="button"
@@ -123,7 +123,7 @@ function PapeleraView({ onRefreshUser }) {
         </button>
       </ViewHeader>
 
-      <div style={{ padding: 32, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ padding: '32px 32px 240px 32px', overflowY: 'auto', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 24 }}>
         {feedback && <Alert type={feedback.type}>{feedback.msg}</Alert>}
 
         {isEmpty ? (

@@ -53,7 +53,7 @@ export async function login(correo, contrasena) {
 
 export async function register(nombre, correo, contrasena) {
   const data = await request('/auth/register', { method: 'POST', body: { nombre, correo, contrasena }, token: null });
-  saveSession(data);
+  // No guardamos la sesión aquí: el usuario debe verificar su correo antes de ingresar
   return data.user;
 }
 
@@ -78,6 +78,11 @@ export async function getProfile() {
 
   try {
     const { user } = await request('/auth/me', { token });
+    // Si por alguna razón el correo no está verificado, cerramos la sesión activa
+    if (user && !user.correoVerificado) {
+      clearSession();
+      return null;
+    }
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     return user;
   } catch (error) {
@@ -85,7 +90,12 @@ export async function getProfile() {
       clearSession();
       return null;
     }
-    return getCurrentUser();
+    const local = getCurrentUser();
+    if (local && !local.correoVerificado) {
+      clearSession();
+      return null;
+    }
+    return local;
   }
 }
 
@@ -99,6 +109,13 @@ export function clearSession() {
  */
 export function forgotPassword(correo) {
   return request('/auth/forgot-password', { method: 'POST', body: { correo }, token: null });
+}
+
+/**
+ * Reenviar correo de verificación de cuenta. Devuelve { message }.
+ */
+export function resendVerification(correo) {
+  return request('/auth/resend-verification', { method: 'POST', body: { correo }, token: null });
 }
 
 /**

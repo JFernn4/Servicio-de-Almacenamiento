@@ -338,7 +338,7 @@ function MisArchivosView({ onRefreshUser }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, flex: 1, overflow: 'hidden' }}>
       <input
         ref={fileInputRef}
         type="file"
@@ -376,7 +376,7 @@ function MisArchivosView({ onRefreshUser }) {
         </div>
       </ViewHeader>
 
-      <div style={{ padding: 32, overflowY: 'auto' }}>
+      <div style={{ padding: '32px 32px 240px 32px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
         {feedback && (
           <div style={{ marginBottom: 20 }}>
             <Alert type={feedback.type}>{feedback.msg}</Alert>
@@ -500,7 +500,7 @@ function MisArchivosView({ onRefreshUser }) {
                             border: `1px solid ${colors.border}`,
                             borderRadius: 8,
                             boxShadow: '0 8px 20px rgba(15, 23, 42, 0.1)',
-                            zIndex: 20,
+                            zIndex: 50,
                             minWidth: 130,
                             overflow: 'hidden',
                           }}

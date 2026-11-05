@@ -4,12 +4,14 @@ import FieldInput from '../../components/ui/FieldInput';
 import Alert from '../../components/ui/Alert';
 import SubmitButton from '../../components/ui/SubmitButton';
 import TextButton from '../../components/ui/TextButton';
-import { login } from '../../services/authService';
+import { login, resendVerification } from '../../services/authService';
+import { colors } from '../../styles/theme';
 
 function LoginScreen({ onLogin, onGoToRegister, onGoToForgotPassword, onGoToHome }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [resendNotice, setResendNotice] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
@@ -19,6 +21,7 @@ function LoginScreen({ onLogin, onGoToRegister, onGoToForgotPassword, onGoToHome
       return;
     }
     setError('');
+    setResendNotice('');
     setLoading(true);
 
     try {
@@ -28,6 +31,17 @@ function LoginScreen({ onLogin, onGoToRegister, onGoToForgotPassword, onGoToHome
       setLoading(false);
     }
   }
+
+  async function handleResend() {
+    try {
+      const res = await resendVerification(email);
+      setResendNotice(res.message || 'Correo de verificación reenviado exitosamente.');
+    } catch (err) {
+      setResendNotice(err.message);
+    }
+  }
+
+  const isUnverified = error.toLowerCase().includes('verificar tu correo');
 
   return (
     <AuthLayout
@@ -50,7 +64,23 @@ function LoginScreen({ onLogin, onGoToRegister, onGoToForgotPassword, onGoToHome
           autoComplete="current-password"
           labelAction={<TextButton onClick={onGoToForgotPassword} style={{ fontSize: 12 }}>¿Olvidaste tu contraseña?</TextButton>}
         />
-        {error && <Alert>{error}</Alert>}
+        {error && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Alert>{error}</Alert>
+            {isUnverified && (
+              <div style={{ textAlign: 'center' }}>
+                <TextButton type="button" onClick={handleResend} style={{ fontSize: 12.5, fontWeight: 700 }}>
+                  ¿Reenviar correo de confirmación?
+                </TextButton>
+                {resendNotice && (
+                  <div style={{ fontSize: 12, color: colors.successDark, marginTop: 4, fontWeight: 600 }}>
+                    {resendNotice}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <SubmitButton loading={loading} label="Iniciar sesión" loadingLabel="Ingresando..." />
       </form>
     </AuthLayout>
