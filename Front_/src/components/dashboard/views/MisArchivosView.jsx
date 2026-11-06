@@ -3,6 +3,8 @@ import Icon from '../../ui/Icon';
 import Alert from '../../ui/Alert';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { useConfirm } from '../../../hooks/useConfirm';
+import RenameModal from '../modals/RenameModal';
+import ShareModal from '../modals/ShareModal';
 import ViewHeader from '../ViewHeader';
 import SearchInput from '../SearchInput';
 import EmptyState from '../EmptyState';
@@ -77,6 +79,9 @@ function MisArchivosView({ onRefreshUser }) {
 
   // Diálogo de confirmación propio (en lugar de window.confirm)
   const { askConfirm, confirmDialogProps } = useConfirm();
+  // Modales interactivos para renombrar y compartir
+  const [renameTarget, setRenameTarget] = useState(null);
+  const [shareTarget, setShareTarget] = useState(null);
   // Archivos arrastrados sobre el recuadro de "espacio vacío"
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
 
@@ -233,18 +238,25 @@ function MisArchivosView({ onRefreshUser }) {
     }
   }
 
-  async function handleRenameFolder(folder) {
-    const nuevoNombre = window.prompt('Nuevo nombre para la carpeta:', folder.name);
-    if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === folder.name) return;
+  function handleRenameFolder(folder) {
+    setRenameTarget({ id: folder.id, name: folder.name, type: 'folder' });
+  }
 
+  function handleRenameFile(file) {
+    setRenameTarget({ id: file.id, name: file.name, type: 'file' });
+  }
+
+  async function handleConfirmRename(newName) {
+    if (!renameTarget) return;
     setFeedback(null);
-    try {
-      const data = await renameFolder(folder.id, nuevoNombre.trim());
+    if (renameTarget.type === 'folder') {
+      const data = await renameFolder(renameTarget.id, newName);
       setFeedback({ type: 'success', msg: data.message || 'Carpeta renombrada.' });
-      await loadCurrentDirectory(currentFolder?.id ?? null);
-    } catch (err) {
-      setFeedback({ type: 'error', msg: err.message });
+    } else {
+      const data = await renameFile(renameTarget.id, newName);
+      setFeedback({ type: 'success', msg: data.message || 'Archivo renombrado.' });
     }
+    await loadCurrentDirectory(currentFolder?.id ?? null);
   }
 
   async function handleDeleteFolder(folder) {
@@ -274,45 +286,13 @@ function MisArchivosView({ onRefreshUser }) {
     }
   }
 
-  async function handleShareFile(file) {
-    const correo = window.prompt(
-      `Ingresa el correo del usuario registrado para enviarle una invitación a "${file.name}" (o déjalo vacío para generar solo el enlace público):`,
-      ''
-    );
-    if (correo === null) return;
-
-    setFeedback(null);
-    try {
-      const data = await shareFile(file.id, correo.trim());
-      if (navigator.clipboard && data.shareUrl) {
-        await navigator.clipboard.writeText(data.shareUrl).catch(() => {});
-      }
-      setFeedback({
-        type: 'success',
-        msg: `${data.message} Enlace: ${data.shareUrl}`,
-      });
-    } catch (err) {
-      setFeedback({ type: 'error', msg: err.message });
-    }
+  function handleShareFile(file) {
+    setShareTarget(file);
   }
 
   async function handleDownloadFile(file) {
     try {
       await downloadFile(file.id, file.name);
-    } catch (err) {
-      setFeedback({ type: 'error', msg: err.message });
-    }
-  }
-
-  async function handleRenameFile(file) {
-    const nuevoNombre = window.prompt('Nuevo nombre para el archivo:', file.name);
-    if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === file.name) return;
-
-    setFeedback(null);
-    try {
-      const data = await renameFile(file.id, nuevoNombre.trim());
-      setFeedback({ type: 'success', msg: data.message || 'Archivo renombrado.' });
-      await loadCurrentDirectory(currentFolder?.id ?? null);
     } catch (err) {
       setFeedback({ type: 'error', msg: err.message });
     }
@@ -727,6 +707,24 @@ function MisArchivosView({ onRefreshUser }) {
           </div>
         </div>
       )}
+
+      {confirmDialogProps && <ConfirmDialog {...confirmDialogProps} />}
+
+      <RenameModal
+        isOpen={Boolean(renameTarget)}
+        item={renameTarget}
+        onClose={() => setRenameTarget(null)}
+        onConfirm={handleConfirmRename}
+      />
+
+      <ShareModal
+        isOpen={Boolean(shareTarget)}
+        file={shareTarget}
+        onClose={() => setShareTarget(null)}
+        onShare={async (file, correo) => {
+          return await shareFile(file.id, correo);
+        }}
+      />
     </div>
   );
 }

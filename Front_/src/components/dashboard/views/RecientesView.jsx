@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import Alert from '../../ui/Alert';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { useConfirm } from '../../../hooks/useConfirm';
+import RenameModal from '../modals/RenameModal';
+import ShareModal from '../modals/ShareModal';
 import ViewHeader from '../ViewHeader';
 import SearchInput from '../SearchInput';
 import EmptyState from '../EmptyState';
@@ -15,6 +17,8 @@ function RecientesView({ onRefreshUser }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [feedback, setFeedback] = useState(null);
   const { askConfirm, confirmDialogProps } = useConfirm();
+  const [renameTarget, setRenameTarget] = useState(null);
+  const [shareTarget, setShareTarget] = useState(null);
 
   async function loadRecent() {
     try {
@@ -44,26 +48,8 @@ function RecientesView({ onRefreshUser }) {
     }
   }
 
-  async function handleShare(file) {
-    const correo = window.prompt(
-      `Ingresa el correo del usuario registrado para enviarle una invitación a "${file.name}" (o déjalo vacío para generar solo el enlace público):`,
-      ''
-    );
-    if (correo === null) return;
-
-    setFeedback(null);
-    try {
-      const data = await shareFile(file.id, correo.trim());
-      if (navigator.clipboard && data.shareUrl) {
-        await navigator.clipboard.writeText(data.shareUrl).catch(() => {});
-      }
-      setFeedback({
-        type: 'success',
-        msg: `${data.message} Enlace: ${data.shareUrl}`,
-      });
-    } catch (err) {
-      setFeedback({ type: 'error', msg: err.message });
-    }
+  function handleShare(file) {
+    setShareTarget(file);
   }
 
   async function handleDownload(file) {
@@ -74,16 +60,16 @@ function RecientesView({ onRefreshUser }) {
     }
   }
 
-  async function handleRename(file) {
-    const nuevoNombre = window.prompt('Nuevo nombre para el archivo:', file.name);
-    if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === file.name) return;
+  function handleRename(file) {
+    setRenameTarget({ id: file.id, name: file.name, type: 'file' });
+  }
 
-    try {
-      await renameFile(file.id, nuevoNombre.trim());
-      await loadRecent();
-    } catch (err) {
-      setFeedback({ type: 'error', msg: err.message });
-    }
+  async function handleConfirmRename(newName) {
+    if (!renameTarget) return;
+    setFeedback(null);
+    const data = await renameFile(renameTarget.id, newName);
+    setFeedback({ type: 'success', msg: data.message || 'Archivo renombrado.' });
+    await loadRecent();
   }
 
   async function handleDelete(file) {
@@ -143,6 +129,22 @@ function RecientesView({ onRefreshUser }) {
       </div>
 
       {confirmDialogProps && <ConfirmDialog {...confirmDialogProps} />}
+
+      <RenameModal
+        isOpen={Boolean(renameTarget)}
+        item={renameTarget}
+        onClose={() => setRenameTarget(null)}
+        onConfirm={handleConfirmRename}
+      />
+
+      <ShareModal
+        isOpen={Boolean(shareTarget)}
+        file={shareTarget}
+        onClose={() => setShareTarget(null)}
+        onShare={async (file, correo) => {
+          return await shareFile(file.id, correo);
+        }}
+      />
     </div>
   );
 }
