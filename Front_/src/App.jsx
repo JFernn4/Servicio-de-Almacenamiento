@@ -15,13 +15,26 @@ import { colors } from './styles/theme';
 // Pantallas que se abren desde un enlace de correo: ?mode=<pantalla>&token=...
 const EMAIL_LINK_SCREENS = ['reset-password', 'verify-email', 'shared-file'];
 
+function getInitialDemoQuota() {
+  try {
+    const raw = localStorage.getItem('vincloud_sim_sub');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.storageBytes) return Number(parsed.storageBytes);
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return 5 * 1024 ** 3;
+}
+
 const DEMO_CLIENT_USER = {
   id: 'client_demo',
   nombre: 'Usuario VinCloud',
   correo: 'usuario@vincloud.app',
   rol: 'Usuario',
-  usadoGb: 0,
-  limiteGb: 15,
+  espacioConsumido: 0,
+  espacioDisponible: getInitialDemoQuota(),
 };
 
 /**
@@ -53,6 +66,7 @@ function App() {
   // 'login' | 'register' | 'forgot-password' | 'reset-password' | 'verify-email' | 'shared-file'
   const [currentScreen, setCurrentScreen] = useState(initial.screen);
   const [user, setUser] = useState(null);
+  const [demoUser, setDemoUser] = useState(DEMO_CLIENT_USER);
   const [pendingEmail, setPendingEmail] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -133,9 +147,17 @@ function App() {
 
     return (
       <DashboardScreen
-        user={user || DEMO_CLIENT_USER}
+        user={user || demoUser}
         onLogout={handleLogout}
-        onRefreshUser={async () => setUser(await getProfile())}
+        onRefreshUser={async (overrides) => {
+          if (overrides && typeof overrides === 'object' && overrides.espacioDisponible !== undefined) {
+            setDemoUser((prev) => ({ ...prev, ...overrides }));
+            setUser((prev) => (prev ? { ...prev, ...overrides } : prev));
+            return;
+          }
+          const refreshed = await getProfile();
+          if (refreshed) setUser(refreshed);
+        }}
       />
     );
   }
