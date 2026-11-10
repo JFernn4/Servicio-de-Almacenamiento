@@ -8,7 +8,7 @@ function LandingCTA({ onGoToRegister }) {
       style={{
         position: 'relative',
         background: 'transparent',
-        color: '#FFFFFF',
+        color: colors.surface,
         padding: '110px 24px',
         overflow: 'hidden',
         textAlign: 'center',
@@ -41,7 +41,7 @@ function LandingCTA({ onGoToRegister }) {
           style={{
             fontSize: 'clamp(32px, 4.5vw, 52px)',
             fontWeight: 900,
-            color: '#FFFFFF',
+            color: colors.surface,
             margin: '0 auto 20px',
             lineHeight: 1.15,
             letterSpacing: '-1px',
@@ -59,7 +59,7 @@ function LandingCTA({ onGoToRegister }) {
             lineHeight: 1.6,
           }}
         >
-          Crea tu cuenta gratuita hoy y disfruta de 15 GB de almacenamiento seguro en la nube con acceso desde cualquier lugar.
+          Crea tu cuenta gratuita hoy y disfruta de 5 GB de almacenamiento en la nube con acceso desde cualquier lugar.
         </p>
 
         <button
@@ -70,7 +70,7 @@ function LandingCTA({ onGoToRegister }) {
             alignItems: 'center',
             gap: 10,
             background: colors.primary,
-            color: '#FFFFFF',
+            color: colors.surface,
             border: '2px solid rgba(255, 255, 255, 0.25)',
             borderRadius: 14,
             padding: '16px 36px',
@@ -82,15 +82,13 @@ function LandingCTA({ onGoToRegister }) {
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = 'scale(1.03)';
-            e.currentTarget.style.background = '#9A1B43';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.background = colors.primary;
           }}
         >
           <span>Crear cuenta gratuita ahora</span>
-          <Icon name="arrowRight" size={18} color="#FFFFFF" strokeWidth={2.5} />
+          <Icon name="arrowRight" size={18} color={colors.surface} strokeWidth={2.5} />
         </button>
       </div>
     </section>

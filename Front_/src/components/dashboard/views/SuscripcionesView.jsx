@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { colors, sectionLabelStyle } from '../../../styles/theme';
 import Icon from '../../ui/Icon';
 import Button from '../../ui/Button';
@@ -6,6 +6,13 @@ import Alert from '../../ui/Alert';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { useConfirm } from '../../../hooks/useConfirm';
 import PaymentGatewayScreen from '../../../pages/Payment/PaymentGatewayScreen';
+import {
+  fetchPlansCatalog,
+  fetchMySubscription,
+  cancelActiveSubscription,
+  fetchPaymentHistory,
+} from '../../../services/subscriptionService';
+import { getToken } from '../../../services/authService';
 
 const GB_BYTES = 1024 ** 3;
 
@@ -62,7 +69,7 @@ const DEFAULT_PLANS = [
     popular: true,
     features: [
       '200 GB de almacenamiento total',
-      'Tamaño máximo por archivo: 250 MB',
+      'Tamaño máximo por archivo: 50 MB',
       'Subida múltiple de hasta 10 archivos simultáneos',
       'Enlaces compartidos con vigencia extendida de 30 días',
     ],
@@ -81,7 +88,7 @@ const DEFAULT_PLANS = [
     popular: false,
     features: [
       '1 TB (1,024 GB) de almacenamiento total',
-      'Tamaño máximo por archivo: 1 GB',
+      'Tamaño máximo por archivo: 50 MB',
       'Subida masiva de hasta 25 archivos simultáneos',
       'Enlaces compartidos corporativos con vigencia de 365 días',
     ],
@@ -100,8 +107,90 @@ function readStoredJson(key, fallback) {
   }
 }
 
+function formatStorageFromBytes(bytes, fallbackGb = 5) {
+  const totalBytes = Number(bytes) || fallbackGb * GB_BYTES;
+  const gb = totalBytes / GB_BYTES;
+  if (gb >= 1024) {
+    const tb = gb / 1024;
+    return `${Number(tb.toFixed(tb % 1 === 0 ? 0 : 1))} TB`;
+  }
+  return `${Number(gb.toFixed(gb % 1 === 0 ? 0 : 1))} GB`;
+}
+
+function buildPlanFeatures(storageLabel, decorator) {
+  const multer = decorator?.politicaMulter;
+  if (!multer) {
+    return [`${storageLabel} de almacenamiento total en la nube`];
+  }
+  const effectiveMaxMb = Math.min(Number(multer.maxFileSizeMb) || 10, 50);
+  const filesText =
+    multer.maxFiles > 1
+      ? `Subida múltiple de hasta ${multer.maxFiles} archivos simultáneos`
+      : 'Subida de 1 archivo a la vez';
+  return [
+    `${storageLabel} de almacenamiento total`,
+    `Tamaño máximo por archivo: ${effectiveMaxMb} MB`,
+    filesText,
+    `Enlaces compartidos con vigencia de ${multer.shareExpiresIn || '24h'}`,
+  ];
+}
+
+function mapCatalogToDashboardPlans(catalog) {
+  if (!catalog || !Array.isArray(catalog.planes)) {
+    return DEFAULT_PLANS;
+  }
+
+  const base = catalog.planBase;
+  const baseBytes = Number(base?.capacidadCatalogo ?? base?.decorator?.almacenamiento ?? 5 * GB_BYTES);
+  const baseStorage = formatStorageFromBytes(baseBytes, 5);
+
+  const freeCard = {
+    id: null,
+    key: 'free',
+    name: base?.nombre || 'Gratuito',
+    decoratorClass: base?.decorator?.clase || 'PlanGratuito',
+    subtitle: base?.descripcionOriginal || 'Componente base del sistema',
+    price: 0,
+    storage: baseStorage,
+    storageBytes: baseBytes,
+    storageDesc: 'Espacio gratuito base (PlanGratuito)',
+    vigenciaDias: null,
+    popular: false,
+    features: buildPlanFeatures(baseStorage, base?.decorator),
+  };
+
+  const dbCards = catalog.planes.map((plan, index) => {
+    const dec = plan.decorator || {};
+    const storageBytes = Number(plan.capacidadCatalogo ?? dec.almacenamiento ?? 50 * GB_BYTES);
+    const storageLabel = formatStorageFromBytes(storageBytes, dec.almacenamientoGb || 50);
+    const normalizedName = String(plan.nombre || '').toLowerCase();
+    const isPopular =
+      normalizedName.includes('pro') ||
+      (catalog.planes.length > 1 &&
+        index === 1 &&
+        !catalog.planes.some((p) => String(p.nombre || '').toLowerCase().includes('pro')));
+
+    return {
+      id: plan.id,
+      key: `plan-${plan.id}`,
+      name: plan.nombre,
+      decoratorClass: dec.clase || 'DecoradorPlanes',
+      subtitle: plan.descripcionOriginal || dec.descripcion || 'Plan de almacenamiento en la nube',
+      price: Number(plan.precioCatalogo ?? dec.costo ?? 0),
+      storage: storageLabel,
+      storageBytes,
+      storageDesc: `PlanGratuito + ${dec.clase || plan.nombre}`,
+      vigenciaDias: Number(plan.vigenciaDias || 30),
+      popular: isPopular,
+      features: buildPlanFeatures(storageLabel, dec),
+    };
+  });
+
+  return [freeCard, ...dbCards];
+}
+
 function SuscripcionesView({ onRefreshUser }) {
-  const [plans] = useState(DEFAULT_PLANS);
+  const [plans, setPlans] = useState(DEFAULT_PLANS);
   const [activeSub, setActiveSub] = useState(() => readStoredJson(SUB_STORAGE_KEY, null));
   const [payments, setPayments] = useState(() => readStoredJson(PAYMENTS_STORAGE_KEY, []));
   const [checkoutState, setCheckoutState] = useState(null); // { plan, mode: 'subscribe' | 'renew' }
@@ -109,6 +198,58 @@ function SuscripcionesView({ onRefreshUser }) {
   const [canceling, setCanceling] = useState(false);
 
   const { askConfirm, confirmDialogProps } = useConfirm();
+
+  const loadSubscriptionData = useCallback(async () => {
+    try {
+      const catalog = await fetchPlansCatalog();
+      if (catalog) {
+        setPlans(mapCatalogToDashboardPlans(catalog));
+      }
+    } catch {
+      // Si el servidor no responde, conserva los planes de respaldo
+    }
+
+    if (!getToken()) return;
+
+    try {
+      const [meData, paymentList] = await Promise.all([
+        fetchMySubscription(),
+        fetchPaymentHistory(),
+      ]);
+      if (meData) {
+        const sub = meData.suscripcionActiva
+          ? {
+              planId: meData.suscripcionActiva.planId,
+              planNombre: meData.suscripcionActiva.planNombre,
+              decoratorClass: meData.planDecorado?.clase || 'DecoradorPlanes',
+              vigenciaDias: meData.suscripcionActiva.vigenciaDias,
+              diasRestantes: meData.suscripcionActiva.diasRestantes,
+              fechaRenovacion: meData.suscripcionActiva.fechaRenovacion,
+              storageBytes: meData.suscripcionActiva.capacidadAlmacenamiento,
+            }
+          : null;
+        setActiveSub(sub);
+        try {
+          if (sub) {
+            localStorage.setItem(SUB_STORAGE_KEY, JSON.stringify(sub));
+          } else {
+            localStorage.removeItem(SUB_STORAGE_KEY);
+          }
+        } catch {
+          // ignore storage errors
+        }
+      }
+      if (Array.isArray(paymentList)) {
+        setPayments(paymentList);
+      }
+    } catch {
+      // Mantiene el estado local simulado si no hay sesión en backend
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSubscriptionData();
+  }, [loadSubscriptionData]);
 
   function saveSubscription(nextSub) {
     setActiveSub(nextSub);
@@ -135,35 +276,41 @@ function SuscripcionesView({ onRefreshUser }) {
     });
   }
 
-  function handleSimulatedPaymentSuccess({ plan, mode, pago }) {
+  async function handlePaymentSuccess({ plan, mode, pago, backendSynced }) {
     const isRenew = mode === 'renew';
     const addedDays = plan.vigenciaDias || 30;
-    const currentRemaining = isRenew && activeSub ? Number(activeSub.diasRestantes || 0) : 0;
-    const totalDays = currentRemaining + addedDays;
-    const renewalDate = new Date(Date.now() + totalDays * 24 * 60 * 60 * 1000).toISOString();
 
-    const nextSub = {
-      planId: plan.id,
-      planNombre: plan.name,
-      decoratorClass: plan.decoratorClass,
-      vigenciaDias: addedDays,
-      diasRestantes: totalDays,
-      fechaRenovacion: renewalDate,
-      storageBytes: plan.storageBytes,
-    };
+    if (backendSynced) {
+      await loadSubscriptionData();
+      if (onRefreshUser) await onRefreshUser();
+    } else {
+      const currentRemaining = isRenew && activeSub ? Number(activeSub.diasRestantes || 0) : 0;
+      const totalDays = currentRemaining + addedDays;
+      const renewalDate = new Date(Date.now() + totalDays * 24 * 60 * 60 * 1000).toISOString();
 
-    saveSubscription(nextSub);
-    prependPayment(pago);
+      const nextSub = {
+        planId: plan.id,
+        planNombre: plan.name,
+        decoratorClass: plan.decoratorClass,
+        vigenciaDias: addedDays,
+        diasRestantes: totalDays,
+        fechaRenovacion: renewalDate,
+        storageBytes: plan.storageBytes,
+      };
+
+      saveSubscription(nextSub);
+      prependPayment(pago);
+      if (onRefreshUser) {
+        onRefreshUser({ espacioDisponible: plan.storageBytes });
+      }
+    }
+
     setFeedback({
       type: 'success',
       text: isRenew
         ? `Suscripción al Plan ${plan.name} renovada exitosamente (+${addedDays} días).`
         : `Plan ${plan.name} (${plan.storage}) activado exitosamente.`,
     });
-
-    if (onRefreshUser) {
-      onRefreshUser({ espacioDisponible: plan.storageBytes });
-    }
   }
 
   async function handleCancelSubscription() {
@@ -177,17 +324,35 @@ function SuscripcionesView({ onRefreshUser }) {
 
     setCanceling(true);
     setFeedback(null);
-    await new Promise((resolve) => setTimeout(resolve, 300));
 
-    saveSubscription(null);
-    setFeedback({
-      type: 'success',
-      text: 'Suscripción cancelada. Tu cuenta volvió al PlanGratuito base (5 GB).',
-    });
-    if (onRefreshUser) {
-      onRefreshUser({ espacioDisponible: 5 * GB_BYTES });
+    try {
+      if (getToken()) {
+        await cancelActiveSubscription();
+        await loadSubscriptionData();
+        if (onRefreshUser) await onRefreshUser();
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        saveSubscription(null);
+        if (onRefreshUser) {
+          onRefreshUser({ espacioDisponible: 5 * GB_BYTES });
+        }
+      }
+      setFeedback({
+        type: 'success',
+        text: 'Suscripción cancelada. Tu cuenta volvió al PlanGratuito base (5 GB).',
+      });
+    } catch {
+      saveSubscription(null);
+      if (onRefreshUser) {
+        onRefreshUser({ espacioDisponible: 5 * GB_BYTES });
+      }
+      setFeedback({
+        type: 'success',
+        text: 'Suscripción cancelada. Tu cuenta volvió al PlanGratuito base (5 GB).',
+      });
+    } finally {
+      setCanceling(false);
     }
-    setCanceling(false);
   }
 
   // Si el usuario abrió la Pasarela de Pagos, renderiza la vista desacoplada
@@ -199,8 +364,14 @@ function SuscripcionesView({ onRefreshUser }) {
         mode={checkoutState.mode}
         currentPlanName={currentPlanLabel}
         onBack={() => setCheckoutState(null)}
-        onPaymentSuccess={handleSimulatedPaymentSuccess}
-        onPaymentRejected={(rejectedRecord) => prependPayment(rejectedRecord)}
+        onPaymentSuccess={handlePaymentSuccess}
+        onPaymentRejected={(rejectedRecord) => {
+          if (getToken()) {
+            loadSubscriptionData();
+          } else {
+            prependPayment(rejectedRecord);
+          }
+        }}
       />
     );
   }
@@ -693,7 +864,7 @@ function SuscripcionesView({ onRefreshUser }) {
               Pagos protegidos y almacenamiento garantizado
             </div>
             <div style={{ fontSize: 13, color: colors.muted }}>
-              Cifrado AES de 256 bits, actualización inmediata de cuota con el Patrón Decorator y cancelación en cualquier momento.
+              Autenticación segura con JWT, actualización inmediata de cuota con el Patrón Decorator y cancelación en cualquier momento.
             </div>
           </div>
         </div>
