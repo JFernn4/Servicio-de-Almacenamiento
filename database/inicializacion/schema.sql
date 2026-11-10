@@ -95,11 +95,17 @@ CREATE TABLE IF NOT EXISTS archivo (
 ALTER TABLE archivo ADD COLUMN IF NOT EXISTS en_papelera BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE archivo ADD COLUMN IF NOT EXISTS fecha_eliminacion DATE;
 
+-- Papelera de carpetas (borrado lógico). Al eliminar una carpeta solo se marca ella:
+-- sus subcarpetas y archivos quedan intactos y ocultos, y vuelven al restaurarla.
+ALTER TABLE carpeta ADD COLUMN IF NOT EXISTS en_papelera BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE carpeta ADD COLUMN IF NOT EXISTS fecha_eliminacion DATE;
+
 CREATE INDEX IF NOT EXISTS idx_carpeta_usuario_id ON carpeta(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_carpeta_padre_id ON carpeta(carpeta_padre_id);
 CREATE INDEX IF NOT EXISTS idx_archivo_usuario_id ON archivo(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_archivo_carpeta_id ON archivo(carpeta_id);
 CREATE INDEX IF NOT EXISTS idx_archivo_papelera ON archivo(usuario_id, en_papelera);
+CREATE INDEX IF NOT EXISTS idx_carpeta_papelera ON carpeta(usuario_id, en_papelera);
 
 -- ============================================================================
 -- MÓDULO DE PLANES, SUSCRIPCIONES Y PAGOS (Avance 2 - 50%)

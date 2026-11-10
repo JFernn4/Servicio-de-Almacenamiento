@@ -230,7 +230,7 @@ export async function findUserPlansList() {
  * (Clase UML `Reporte`: fechaGeneracion, usuariosActivos, espacioTotalConsumido, ingresosSimulados).
  */
 export async function getServiceReportMetrics() {
-  const [summaryRes, plansBreakdownRes] = await Promise.all([
+  const [summaryRes, plansBreakdownRes, storageRes] = await Promise.all([
     query(`
       SELECT
         CURRENT_DATE AS fecha_generacion,
@@ -256,10 +256,29 @@ export async function getServiceReportMetrics() {
       GROUP BY p.id
       ORDER BY p.precio ASC
     `),
+    // Lo que ocupan de verdad los archivos en el almacenamiento (también los de la papelera,
+    // que siguen guardados hasta eliminarse definitivamente)
+    query(`
+      WITH RECURSIVE ocultas AS (
+        SELECT id FROM carpeta WHERE en_papelera = TRUE
+        UNION
+        SELECT c.id FROM carpeta c INNER JOIN ocultas o ON c.carpeta_padre_id = o.id
+      )
+      SELECT
+        COALESCE(SUM(tamano), 0)::bigint AS bytes_almacenados,
+        COALESCE(SUM(tamano) FILTER (
+          WHERE en_papelera OR carpeta_id IN (SELECT id FROM ocultas)
+        ), 0)::bigint AS bytes_en_papelera,
+        COUNT(*) FILTER (
+          WHERE en_papelera OR carpeta_id IN (SELECT id FROM ocultas)
+        )::int AS archivos_en_papelera
+      FROM archivo
+    `),
   ]);
 
   return {
     summary: summaryRes.rows[0],
     plansBreakdown: plansBreakdownRes.rows,
+    storage: storageRes.rows[0],
   };
 }

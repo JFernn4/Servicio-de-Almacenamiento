@@ -1,6 +1,7 @@
 import * as adminRepository from '../repositories/adminRepository.js';
 import { toPublicUser } from './authService.js';
 import { fileStorage } from '../patterns/storageBridge/index.js';
+import { config } from '../config/env.js';
 import { HttpError } from '../utils/httpError.js';
 
 const PG_UNIQUE_VIOLATION = '23505';
@@ -150,12 +151,38 @@ export async function getUserPlans() {
   }));
 }
 
+const percent = (part, total) => (total > 0 ? Number(((part / total) * 100).toFixed(2)) : null);
+
+/**
+ * Métricas de almacenamiento del reporte: lo guardado en la nube frente a la
+ * capacidad contratada por los usuarios y a la capacidad del proveedor.
+ */
+function buildStorageMetrics(storage, capacidadContratadaBytes) {
+  const almacenadoBytes = Number(storage.bytes_almacenados);
+  const enPapeleraBytes = Number(storage.bytes_en_papelera);
+  const capacidadNubeBytes = config.storage.capacityBytes;
+
+  return {
+    proveedor: config.storage.driver,
+    almacenadoBytes,
+    activosBytes: almacenadoBytes - enPapeleraBytes,
+    enPapeleraBytes,
+    archivosEnPapelera: Number(storage.archivos_en_papelera),
+    capacidadContratadaBytes,
+    porcentajeCapacidadContratada: percent(almacenadoBytes, capacidadContratadaBytes),
+    // null cuando no hay un límite configurado (p. ej. disco local)
+    capacidadNubeBytes,
+    libreNubeBytes: capacidadNubeBytes === null ? null : Math.max(0, capacidadNubeBytes - almacenadoBytes),
+    porcentajeNube: capacidadNubeBytes === null ? null : percent(almacenadoBytes, capacidadNubeBytes),
+  };
+}
+
 /**
  * Caso de uso: "Consultar reportes generales del servicio"
  * (`Administrador.generarReporte(): Reporte` en Diagrama de Clases UML).
  */
 export async function generateReport() {
-  const { summary, plansBreakdown } = await adminRepository.getServiceReportMetrics();
+  const { summary, plansBreakdown, storage } = await adminRepository.getServiceReportMetrics();
 
   return {
     fechaGeneracion: summary.fecha_generacion,
@@ -167,6 +194,7 @@ export async function generateReport() {
     totalCarpetas: Number(summary.total_carpetas),
     suscripcionesActivas: Number(summary.suscripciones_activas),
     ingresosSimulados: Number(summary.ingresos_simulados),
+    almacenamiento: buildStorageMetrics(storage, Number(summary.espacio_total_disponible)),
     planes: plansBreakdown.map((p) => ({
       id: p.id,
       nombre: p.nombre,
