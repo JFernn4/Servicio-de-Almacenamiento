@@ -1,5 +1,4 @@
 import React from 'react';
-import BrandLogo from '../../components/ui/BrandLogo';
 import { colors } from '../../styles/theme';
 
 function LandingFooter({ onGoToLogin, onGoToRegister }) {
@@ -45,13 +44,13 @@ function LandingFooter({ onGoToLogin, onGoToRegister }) {
               <span style={{ fontSize: 20, fontWeight: 800, color: colors.surface }}>VinCloud</span>
             </div>
             <p style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.65)', lineHeight: 1.6, margin: 0 }}>
-              Servicio de almacenamiento inteligente, rápido y seguro. Protege tus fotos, documentos y proyectos con tecnología en la nube de alta disponibilidad.
+              Servicio de almacenamiento inteligente, rápido y seguro. Organiza tus fotos, documentos y proyectos en la nube con acceso desde cualquier lugar.
             </p>
           </div>
 
           {/* Columna Navegación */}
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: colors.surface, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
               Navegación
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -71,7 +70,7 @@ function LandingFooter({ onGoToLogin, onGoToRegister }) {
                 onClick={() => scrollToSection('seguridad')}
                 style={{ fontSize: 14, color: 'rgba(255, 255, 255, 0.65)', cursor: 'pointer' }}
               >
-                Seguridad AES-256
+                Seguridad JWT y Bcrypt
               </span>
               <span
                 onClick={() => scrollToSection('planes')}
@@ -84,15 +83,15 @@ function LandingFooter({ onGoToLogin, onGoToRegister }) {
 
           {/* Columna Cuenta */}
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: colors.surface, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
               Acceso
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <span onClick={onGoToLogin} style={{ fontSize: 14, color: 'rgba(255, 255, 255, 0.65)', cursor: 'pointer' }}>
                 Iniciar sesión
               </span>
-              <span onClick={onGoToRegister} style={{ fontSize: 14, color: '#F472B6', fontWeight: 600, cursor: 'pointer' }}>
-                Crear cuenta gratis (15 GB)
+              <span onClick={onGoToRegister} style={{ fontSize: 14, color: colors.primarySoft, fontWeight: 600, cursor: 'pointer' }}>
+                Crear cuenta gratis (5 GB)
               </span>
             </div>
           </div>

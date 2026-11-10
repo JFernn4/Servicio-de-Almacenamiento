@@ -3,6 +3,11 @@ import { colors, sectionLabelStyle } from '../../styles/theme';
 import Icon from '../../components/ui/Icon';
 import Button from '../../components/ui/Button';
 import Alert from '../../components/ui/Alert';
+import { getToken } from '../../services/authService';
+import {
+  subscribeOrChangePlan,
+  renewActiveSubscription,
+} from '../../services/subscriptionService';
 
 function formatCardNumber(value) {
   const digits = String(value || '').replace(/\D/g, '').slice(0, 16);
@@ -99,10 +104,64 @@ function PaymentGatewayScreen({
     }
 
     setSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 550));
 
     const last4 = cleanDigits.slice(-4);
     const isRejected = simulateReject || last4 === '0000';
+
+    // Si hay sesión autenticada con el backend, persiste la suscripción y el pago en la BD
+    if (getToken()) {
+      try {
+        const payload = {
+          planId: plan.id,
+          numeroTarjeta: cleanDigits,
+          tarjetaUltimos4: last4,
+          simularRechazo: isRejected,
+        };
+        const response = isRenewal
+          ? await renewActiveSubscription(payload)
+          : await subscribeOrChangePlan(payload);
+
+        const nextReceipt = {
+          referencia: response.pago?.referencia || generateReference(isRenewal ? 'REN' : 'SUB'),
+          monto: Number(response.pago?.monto ?? price),
+          tarjetaUltimos4: response.pago?.tarjeta_ultimos4 || last4,
+          fecha: response.pago?.fecha || new Date().toISOString(),
+          planNombre: plan.name || plan.nombre,
+          claseDecorador: decoratorClass,
+          almacenamiento: storageLabel,
+          mensaje:
+            response.message ||
+            `Se activó el Plan ${plan.name || plan.nombre} (${storageLabel}) exitosamente en tu cuenta.`,
+        };
+
+        setReceipt(nextReceipt);
+        setSubmitting(false);
+
+        if (onPaymentSuccess) {
+          await onPaymentSuccess({
+            plan,
+            mode,
+            pago: response.pago,
+            backendSynced: true,
+          });
+        }
+        return;
+      } catch (err) {
+        if (onPaymentRejected) {
+          onPaymentRejected();
+        }
+        setErrorMessage(
+          err.message ||
+            `El pago fue rechazado por el banco emisor (tarjeta terminada en •••• ${last4}).`
+        );
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    // Modo simulación cuando se prueba sin sesión de backend
+    await new Promise((resolve) => setTimeout(resolve, 550));
+
     const referencia = generateReference(isRenewal ? 'REN' : 'SUB');
     const nowIso = new Date().toISOString();
 
@@ -161,6 +220,7 @@ function PaymentGatewayScreen({
         plan,
         mode,
         pago: paymentRecord,
+        backendSynced: false,
       });
     }
   }
