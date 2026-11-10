@@ -43,6 +43,9 @@ services:
         value: archivos
       - key: MAX_UPLOAD_MB
         value: "50"
+      # Capacidad del plan gratuito de Supabase Storage (1 GB), para el reporte del admin
+      - key: STORAGE_CAPACITY_MB
+        value: "1024"
 
       # URL pública del frontend (la de vincloud-web)
       - key: CORS_ORIGIN

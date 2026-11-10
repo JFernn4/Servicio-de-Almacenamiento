@@ -1,4 +1,5 @@
 import { colors } from '../../../styles/theme';
+import AdminStorageMetrics from './AdminStorageMetrics';
 
 function formatBytes(bytes = 0) {
   const num = Number(bytes) || 0;
@@ -99,6 +100,8 @@ function AdminReportSection({ report }) {
           </div>
         </div>
       </div>
+
+      <AdminStorageMetrics almacenamiento={report?.almacenamiento} />
     </section>
   );
 }

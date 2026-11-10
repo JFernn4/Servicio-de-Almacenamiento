@@ -70,6 +70,8 @@ export const config = {
         : path.join(os.tmpdir(), 'vincloud-uploads'),
     // Tope global por archivo (MB), por encima de los límites de cada plan. Ej.: 50 en Supabase gratis
     maxUploadBytes: Number(env.MAX_UPLOAD_MB) > 0 ? Number(env.MAX_UPLOAD_MB) * 1024 * 1024 : null,
+    // Capacidad total del proveedor (MB), para las métricas del admin. Ej.: 1024 en Supabase gratis
+    capacityBytes: Number(env.STORAGE_CAPACITY_MB) > 0 ? Number(env.STORAGE_CAPACITY_MB) * 1024 * 1024 : null,
     supabase: {
       url: env.SUPABASE_URL,
       serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,

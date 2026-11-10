@@ -153,6 +153,32 @@ export async function fetchTrashFiles() {
 }
 
 /**
+ * Contenido completo de la papelera: archivos y carpetas.
+ */
+export async function fetchTrash() {
+  const data = await request('/storage/trash');
+  return { archivos: data.archivos || [], carpetas: data.carpetas || [] };
+}
+
+/**
+ * Restaura una carpeta de la papelera con todo su contenido.
+ */
+export function restoreFolder(id) {
+  return request(`/storage/trash/folders/${encodeURIComponent(id)}/restore`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Elimina definitivamente una carpeta de la papelera con todo su contenido.
+ */
+export function permanentDeleteFolder(id) {
+  return request(`/storage/trash/folders/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
  * Restaura un archivo desde la papelera.
  */
 export function restoreFile(id) {

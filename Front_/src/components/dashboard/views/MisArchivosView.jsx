@@ -261,16 +261,16 @@ function MisArchivosView({ onRefreshUser }) {
 
   async function handleDeleteFolder(folder) {
     const accepted = await askConfirm({
-      title: 'Eliminar carpeta',
-      message: `¿Eliminar la carpeta "${folder.name}" y todo su contenido?`,
-      confirmLabel: 'Eliminar carpeta',
+      title: 'Mover carpeta a la papelera',
+      message: `¿Mover la carpeta "${folder.name}" a la papelera? Podrás restaurarla con todo su contenido desde la Papelera.`,
+      confirmLabel: 'Mover a la papelera',
     });
     if (!accepted) return;
 
     setFeedback(null);
     try {
       const data = await deleteFolder(folder.id);
-      setFeedback({ type: 'success', msg: data.message || 'Carpeta eliminada.' });
+      setFeedback({ type: 'success', msg: data.message || 'Carpeta movida a la papelera.' });
       await loadCurrentDirectory(currentFolder?.id ?? null);
       if (onRefreshUser) await onRefreshUser();
     } catch (err) {
