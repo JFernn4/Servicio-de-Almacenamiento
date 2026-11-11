@@ -197,6 +197,21 @@ export async function findTrashFoldersByUser(usuarioId) {
 }
 
 /**
+ * Carpetas que llevan en la papelera más de `retentionDays` días (de un usuario o de todos).
+ */
+export async function findExpiredTrashFolders(retentionDays = 30, usuarioId = null) {
+  const { rows } = await query(
+    `SELECT id, usuario_id
+     FROM carpeta
+     WHERE en_papelera = TRUE
+       AND fecha_eliminacion <= (CURRENT_DATE - ($1 || ' days')::interval)::date
+       AND ($2::int IS NULL OR usuario_id = $2)`,
+    [retentionDays, usuarioId]
+  );
+  return rows;
+}
+
+/**
  * Elimina una carpeta y sus subcarpetas/archivos en cascada.
  */
 export async function deleteFolder(id, usuarioId) {

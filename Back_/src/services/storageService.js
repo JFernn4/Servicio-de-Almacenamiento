@@ -206,16 +206,28 @@ export async function permanentDeleteFile(archivoId, usuarioId) {
  * recalculando la cuota de cada usuario afectado y borrando los archivos físicos de disco/storage.
  */
 export async function purgeExpiredTrash({ retentionDays = 30, usuarioId = null } = {}) {
+  // 1. Carpetas vencidas en la papelera, con todo su contenido
+  const carpetasVencidas = await folderRepository.findExpiredTrashFolders(retentionDays, usuarioId);
+  let archivosCarpetas = 0;
+  let bytesCarpetas = 0;
+  for (const carpeta of carpetasVencidas) {
+    const resultado = await permanentDeleteFolder(carpeta.id, carpeta.usuario_id);
+    archivosCarpetas += resultado.archivosEliminados;
+    bytesCarpetas += resultado.bytesLiberados;
+  }
+
+  // 2. Archivos vencidos enviados a la papelera de forma individual
   const eliminados = await fileRepository.purgeExpiredTrashFiles(retentionDays, usuarioId);
 
   if (eliminados.length > 0) {
     await fileStorage.removeMany(eliminados);
   }
 
-  const totalBytesLiberados = eliminados.reduce((acc, f) => acc + Number(f.tamano || 0), 0);
+  const totalBytesLiberados = eliminados.reduce((acc, f) => acc + Number(f.tamano || 0), 0) + bytesCarpetas;
 
   return {
-    eliminadosCount: eliminados.length,
+    eliminadosCount: eliminados.length + archivosCarpetas,
+    carpetasEliminadas: carpetasVencidas.length,
     bytesLiberados: totalBytesLiberados,
     archivos: eliminados.map((f) => ({
       id: f.id,
@@ -224,17 +236,6 @@ export async function purgeExpiredTrash({ retentionDays = 30, usuarioId = null }
       usuarioId: f.usuario_id,
     })),
   };
-}
-
-/**
- * Lista los archivos que se encuentran actualmente en la papelera del usuario.
- * Antes de listarlos, ejecuta una purga pasiva automática de archivos vencidos (> 30 días).
- */
-export async function getTrashFiles(usuarioId) {
-  await purgeExpiredTrash({ retentionDays: 30, usuarioId }).catch((err) => {
-    console.error('[TrashAutoPurge] Error en purga pasiva para usuario', usuarioId, err.message);
-  });
-  return fileRepository.findTrashFilesByUser(usuarioId);
 }
 
 /**
