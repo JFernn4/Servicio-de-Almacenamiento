@@ -33,8 +33,9 @@ export async function request(path, { method = 'GET', body, token = getToken(), 
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.error || 'Ocurrió un error inesperado.');
+    const error = new Error(data.error || data.message || 'Ocurrió un error inesperado.');
     error.status = response.status;
+    error.data = data;
     throw error;
   }
   return data;

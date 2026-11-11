@@ -190,6 +190,20 @@ export async function updatePlan(
       activo ?? null,
     ]
   );
+
+  // Si cambió la capacidad del plan, sincronizar la cuota de quienes tienen ese plan activo
+  if (rows[0] && capacidadAlmacenamiento !== undefined && capacidadAlmacenamiento !== null) {
+    await query(
+      `UPDATE usuario u
+       SET espacio_disponible = $2
+       FROM suscripcion s
+       WHERE s.usuario_id = u.id
+         AND s.plan_id = $1
+         AND s.estado = 'activa'`,
+      [id, capacidadAlmacenamiento]
+    );
+  }
+
   return rows[0] ?? null;
 }
 
@@ -230,8 +244,22 @@ export async function findUserPlansList() {
  * (Clase UML `Reporte`: fechaGeneracion, usuariosActivos, espacioTotalConsumido, ingresosSimulados).
  */
 export async function getServiceReportMetrics() {
-  const [summaryRes, plansBreakdownRes, storageRes] = await Promise.all([
+  const [summaryRes, plansBreakdownRes, storageRes, recentPaymentsRes] = await Promise.all([
     query(`
+      WITH pagos_resumen AS (
+        SELECT
+          COUNT(*) FILTER (WHERE estado = 'aprobado')::int AS total_pagos_aprobados,
+          COALESCE(SUM(monto) FILTER (WHERE estado = 'aprobado'), 0.00)::numeric(12, 2) AS ingresos_pagos
+        FROM pago
+      ),
+      suscripciones_mrr AS (
+        SELECT
+          COUNT(*)::int AS suscripciones_activas,
+          COALESCE(SUM(p.precio), 0.00)::numeric(12, 2) AS ingresos_mensuales_activos
+        FROM suscripcion s
+        JOIN plan p ON p.id = s.plan_id
+        WHERE s.estado = 'activa'
+      )
       SELECT
         CURRENT_DATE AS fecha_generacion,
         (SELECT COUNT(*) FROM usuario)::int AS usuarios_activos,
@@ -239,9 +267,14 @@ export async function getServiceReportMetrics() {
         (SELECT COALESCE(SUM(espacio_consumido), 0) FROM usuario)::bigint AS espacio_total_consumido,
         (SELECT COALESCE(SUM(espacio_disponible), 0) FROM usuario)::bigint AS espacio_total_disponible,
         (SELECT COUNT(*) FROM archivo WHERE en_papelera = FALSE)::int AS total_archivos,
-        (SELECT COUNT(*) FROM carpeta)::int AS total_carpetas,
-        (SELECT COUNT(*) FROM suscripcion WHERE estado = 'activa')::int AS suscripciones_activas,
-        (SELECT COALESCE(SUM(monto), 0.00) FROM pago WHERE estado = 'aprobado')::numeric(12, 2) AS ingresos_simulados
+        (SELECT COUNT(*) FROM carpeta WHERE en_papelera = FALSE)::int AS total_carpetas,
+        sm.suscripciones_activas,
+        pr.total_pagos_aprobados,
+        pr.ingresos_pagos,
+        sm.ingresos_mensuales_activos,
+        GREATEST(pr.ingresos_pagos, sm.ingresos_mensuales_activos)::numeric(12, 2) AS ingresos_simulados
+      FROM pagos_resumen pr
+      CROSS JOIN suscripciones_mrr sm
     `),
     query(`
       SELECT
@@ -250,11 +283,13 @@ export async function getServiceReportMetrics() {
         p.precio,
         p.capacidad_almacenamiento,
         p.activo,
-        COUNT(s.id) FILTER (WHERE s.estado = 'activa')::int AS usuarios_suscritos
+        COUNT(DISTINCT s.id) FILTER (WHERE s.estado = 'activa')::int AS usuarios_suscritos,
+        COALESCE(SUM(pg.monto) FILTER (WHERE pg.estado = 'aprobado'), 0.00)::numeric(12, 2) AS ingresos_plan
       FROM plan p
       LEFT JOIN suscripcion s ON s.plan_id = p.id
+      LEFT JOIN pago pg ON pg.suscripcion_id = s.id
       GROUP BY p.id
-      ORDER BY p.precio ASC
+      ORDER BY p.precio ASC, p.id ASC
     `),
     // Lo que ocupan de verdad los archivos en el almacenamiento (también los de la papelera,
     // que siguen guardados hasta eliminarse definitivamente)
@@ -274,11 +309,33 @@ export async function getServiceReportMetrics() {
         )::int AS archivos_en_papelera
       FROM archivo
     `),
+    query(`
+      SELECT
+        pg.id AS pago_id,
+        pg.usuario_id,
+        u.nombre AS usuario_nombre,
+        u.correo AS usuario_correo,
+        p.id AS plan_id,
+        p.nombre AS plan_nombre,
+        pg.tipo,
+        pg.monto,
+        pg.fecha,
+        pg.estado,
+        pg.referencia,
+        pg.tarjeta_ultimos4
+      FROM pago pg
+      JOIN usuario u ON u.id = pg.usuario_id
+      JOIN suscripcion s ON s.id = pg.suscripcion_id
+      JOIN plan p ON p.id = s.plan_id
+      ORDER BY pg.fecha DESC
+      LIMIT 10
+    `),
   ]);
 
   return {
     summary: summaryRes.rows[0],
     plansBreakdown: plansBreakdownRes.rows,
     storage: storageRes.rows[0],
+    recentPayments: recentPaymentsRes.rows,
   };
 }

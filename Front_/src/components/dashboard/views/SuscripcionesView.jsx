@@ -428,7 +428,7 @@ function SuscripcionesView({ onRefreshUser }) {
 
       {feedback && (
         <div style={{ maxWidth: 1120, margin: '0 auto 24px' }}>
-          <Alert variant={feedback.type}>{feedback.text}</Alert>
+          <Alert type={feedback.type}>{feedback.text}</Alert>
         </div>
       )}
 

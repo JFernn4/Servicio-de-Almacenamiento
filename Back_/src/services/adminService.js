@@ -182,7 +182,8 @@ function buildStorageMetrics(storage, capacidadContratadaBytes) {
  * (`Administrador.generarReporte(): Reporte` en Diagrama de Clases UML).
  */
 export async function generateReport() {
-  const { summary, plansBreakdown, storage } = await adminRepository.getServiceReportMetrics();
+  const { summary, plansBreakdown, storage, recentPayments } =
+    await adminRepository.getServiceReportMetrics();
 
   return {
     fechaGeneracion: summary.fecha_generacion,
@@ -193,6 +194,9 @@ export async function generateReport() {
     totalArchivos: Number(summary.total_archivos),
     totalCarpetas: Number(summary.total_carpetas),
     suscripcionesActivas: Number(summary.suscripciones_activas),
+    totalPagosAprobados: Number(summary.total_pagos_aprobados || 0),
+    ingresosPagos: Number(summary.ingresos_pagos || 0),
+    ingresosMensualesActivos: Number(summary.ingresos_mensuales_activos || 0),
     ingresosSimulados: Number(summary.ingresos_simulados),
     almacenamiento: buildStorageMetrics(storage, Number(summary.espacio_total_disponible)),
     planes: plansBreakdown.map((p) => ({
@@ -202,6 +206,21 @@ export async function generateReport() {
       capacidadAlmacenamiento: Number(p.capacidad_almacenamiento),
       activo: Boolean(p.activo),
       usuariosSuscritos: Number(p.usuarios_suscritos),
+      ingresosPlan: Number(p.ingresos_plan || 0),
+    })),
+    pagosRecientes: (recentPayments || []).map((pg) => ({
+      id: pg.pago_id,
+      usuarioId: pg.usuario_id,
+      usuarioNombre: pg.usuario_nombre,
+      usuarioCorreo: pg.usuario_correo,
+      planId: pg.plan_id,
+      planNombre: pg.plan_nombre,
+      tipo: pg.tipo,
+      monto: Number(pg.monto),
+      fecha: pg.fecha,
+      estado: pg.estado,
+      referencia: pg.referencia,
+      tarjetaUltimos4: pg.tarjeta_ultimos4,
     })),
   };
 }

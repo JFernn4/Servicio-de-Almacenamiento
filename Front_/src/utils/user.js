@@ -15,7 +15,7 @@ export function getInitials(nombre = '') {
 /**
  * Formatea bytes en una unidad legible (B, KB, MB, GB, TB).
  */
-export function formatBytes(bytes = 0) {
+export function formatBytes(bytes = 0, { decimals = 1, floor = false } = {}) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let value = Number(bytes) || 0;
   let unit = 0;
@@ -23,7 +23,11 @@ export function formatBytes(bytes = 0) {
     value /= 1024;
     unit += 1;
   }
-  return `${Number(value.toFixed(1))} ${units[unit]}`;
+  const factor = Math.pow(10, decimals);
+  const rounded = floor
+    ? Math.floor(value * factor) / factor
+    : Number(value.toFixed(decimals));
+  return `${rounded} ${units[unit]}`;
 }
 
 /**
@@ -34,8 +38,25 @@ export function getStorageUsage(user) {
   const used = Number(user?.espacioConsumido) || 0;
   const total = Number(user?.espacioDisponible) || 0;
   const free = Math.max(0, total - used);
-  const percent = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
-  return { used, free, total, percent };
+  const exactPercent = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+  const percent = Math.round(exactPercent);
+
+  let percentLabel = '0';
+  if (used > 0 && exactPercent > 0) {
+    if (exactPercent < 0.01) {
+      percentLabel = '< 0.01';
+    } else if (exactPercent < 1) {
+      percentLabel = exactPercent.toFixed(2);
+    } else {
+      percentLabel = String(Number(exactPercent.toFixed(1)));
+    }
+  }
+
+  const barWidth = used > 0 && exactPercent > 0 ? Math.max(exactPercent, 2) : 0;
+  const freeFormatted =
+    used > 0 && free > 0 ? formatBytes(free, { decimals: 2, floor: true }) : formatBytes(free);
+
+  return { used, free, total, percent, percentLabel, barWidth, freeFormatted };
 }
 
 /**
