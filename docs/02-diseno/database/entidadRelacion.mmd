@@ -69,13 +69,17 @@ flowchart TB
     Carpeta --- c_id(["i̲d̲"])
     Carpeta --- c_nombre([nombre])
     Carpeta --- c_fecha([fechaCreacion])
+    Carpeta --- c_pap([enPapelera])
+    Carpeta --- c_fdel([fechaEliminacion])
 
     Archivo --- a_id(["i̲d̲"])
     Archivo --- a_nombre([nombre])
     Archivo --- a_tamano([tamano])
     Archivo --- a_tipo([tipo])
     Archivo --- a_fecha([fechaSubida])
+    Archivo --- a_pap([enPapelera])
+    Archivo --- a_fdel([fechaEliminacion])
 
-    %% Atributos nuevos del Avance 2 resaltados
+    %% Atributos nuevos resaltados
     classDef nuevo fill:#FDF2F5,stroke:#7D1535,stroke-width:2px,color:#3B0A1F
-    class p_activo,pg_tipo,pg_ref,pg_tarjeta nuevo
+    class p_activo,pg_tipo,pg_ref,pg_tarjeta,c_pap,c_fdel,a_pap,a_fdel nuevo

@@ -238,6 +238,30 @@ export async function getTrashFiles(usuarioId) {
 }
 
 /**
+ * Indica si un archivo está en la papelera (directamente o dentro de una carpeta en papelera).
+ */
+async function isInTrash(archivo) {
+  if (archivo.en_papelera) return true;
+  if (!archivo.carpeta_id) return false;
+  return !(await folderRepository.findActiveFolderByIdAndUser(archivo.carpeta_id, archivo.usuario_id));
+}
+
+/**
+ * Lista los elementos que se encuentran en la papelera del usuario (archivos y carpetas).
+ * Antes de listarlos, ejecuta una purga pasiva automática de archivos vencidos (> 30 días).
+ */
+export async function getTrash(usuarioId) {
+  await purgeExpiredTrash({ retentionDays: 30, usuarioId }).catch((err) => {
+    console.error('[TrashAutoPurge] Error en purga pasiva para usuario', usuarioId, err.message);
+  });
+  const [archivos, carpetas] = await Promise.all([
+    fileRepository.findTrashFilesByUser(usuarioId),
+    folderRepository.findTrashFoldersByUser(usuarioId),
+  ]);
+  return { archivos, carpetas };
+}
+
+/**
  * Restaura un archivo de la papelera a su ubicación original. Si su carpeta
  * sigue en la papelera, el archivo vuelve a la raíz para que sea visible.
  */
@@ -332,7 +356,7 @@ export async function moveFile(archivoId, usuarioId, carpetaId = null) {
     throw new HttpError(404, 'Archivo no encontrado o no tienes permisos para moverlo.');
   }
 
-  if (archivo.en_papelera) {
+  if (await isInTrash(archivo)) {
     throw new HttpError(400, 'No puedes mover un archivo que se encuentra en la papelera.');
   }
 
@@ -340,7 +364,7 @@ export async function moveFile(archivoId, usuarioId, carpetaId = null) {
   let targetFolderId = null;
 
   if (carpetaId !== null && carpetaId !== undefined && carpetaId !== '' && carpetaId !== 'root') {
-    const carpeta = await folderRepository.findFolderByIdAndUser(carpetaId, usuarioId);
+    const carpeta = await folderRepository.findActiveFolderByIdAndUser(carpetaId, usuarioId);
     if (!carpeta) {
       throw new HttpError(404, 'La carpeta de destino no existe o no tienes acceso a ella.');
     }

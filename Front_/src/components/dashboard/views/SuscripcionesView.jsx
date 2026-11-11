@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { colors, sectionLabelStyle } from '../../../styles/theme';
 import Icon from '../../ui/Icon';
 import Button from '../../ui/Button';
@@ -6,9 +6,10 @@ import Alert from '../../ui/Alert';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { useConfirm } from '../../../hooks/useConfirm';
 import PaymentGatewayScreen from '../../../pages/Payment/PaymentGatewayScreen';
+import { getToken } from '../../../services/authService';
 import {
   fetchPlansCatalog,
-  fetchActiveSubscription,
+  fetchMySubscription,
   fetchPaymentHistory,
   cancelActiveSubscription,
 } from '../../../services/subscriptionService';
@@ -195,7 +196,6 @@ function SuscripcionesView({ onRefreshUser }) {
   const [checkoutState, setCheckoutState] = useState(null); // { plan, mode: 'subscribe' | 'renew' }
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', text }
   const [canceling, setCanceling] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   const { askConfirm, confirmDialogProps } = useConfirm();
 
@@ -276,8 +276,39 @@ function SuscripcionesView({ onRefreshUser }) {
     });
   }
 
-  function handleSimulatedPaymentSuccess({ plan, mode, pago }) {
+  async function handlePaymentSuccess({ plan, mode, pago, resultado, backendSynced }) {
     const isRenew = mode === 'renew';
+
+    if (backendSynced) {
+      if (resultado?.suscripcionActiva) {
+        saveSubscription({
+          planId: resultado.suscripcionActiva.planId,
+          planNombre: resultado.suscripcionActiva.planNombre,
+          decoratorClass: resultado.planDecorado?.clase || plan.decoratorClass,
+          vigenciaDias: resultado.suscripcionActiva.vigenciaDias,
+          diasRestantes: resultado.suscripcionActiva.diasRestantes,
+          fechaRenovacion: resultado.suscripcionActiva.fechaRenovacion,
+          storageBytes: resultado.suscripcionActiva.capacidadAlmacenamiento,
+        });
+      }
+      if (pago) {
+        prependPayment(pago);
+      }
+      await loadSubscriptionData();
+      if (onRefreshUser) {
+        await onRefreshUser();
+      }
+      setFeedback({
+        type: 'success',
+        text:
+          resultado?.message ||
+          (isRenew
+            ? `Suscripción al Plan ${plan.name} renovada exitosamente (+${plan.vigenciaDias || 30} días).`
+            : `Plan ${plan.name} (${plan.storage}) activado exitosamente.`),
+      });
+      return;
+    }
+
     const addedDays = plan.vigenciaDias || 30;
     const currentRemaining = isRenew && activeSub ? Number(activeSub.diasRestantes || 0) : 0;
     const totalDays = currentRemaining + addedDays;
@@ -294,14 +325,14 @@ function SuscripcionesView({ onRefreshUser }) {
     };
 
     saveSubscription(nextSub);
-    prependPayment(pago);
+    if (pago) {
+      prependPayment(pago);
+    }
     setFeedback({
       type: 'success',
-      text:
-        resultado?.message ||
-        (isRenew
-          ? `Suscripción al Plan ${plan.name} renovada exitosamente (+${plan.vigenciaDias || 30} días).`
-          : `Plan ${plan.name} (${plan.storage}) activado exitosamente.`),
+      text: isRenew
+        ? `Suscripción al Plan ${plan.name} renovada exitosamente (+${addedDays} días).`
+        : `Plan ${plan.name} (${plan.storage}) activado exitosamente.`,
     });
 
     if (onRefreshUser) {
@@ -320,17 +351,39 @@ function SuscripcionesView({ onRefreshUser }) {
 
     setCanceling(true);
     setFeedback(null);
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    saveSubscription(null);
-    setFeedback({
-      type: 'success',
-      text: 'Suscripción cancelada. Tu cuenta volvió al PlanGratuito base (5 GB).',
-    });
-    if (onRefreshUser) {
-      onRefreshUser({ espacioDisponible: 5 * GB_BYTES });
+    try {
+      if (getToken()) {
+        const data = await cancelActiveSubscription();
+        saveSubscription(null);
+        await loadSubscriptionData();
+        setFeedback({
+          type: 'success',
+          text:
+            data.message ||
+            'Suscripción cancelada. Tu cuenta volvió al PlanGratuito base (5 GB).',
+        });
+        if (onRefreshUser) {
+          await onRefreshUser();
+        }
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        saveSubscription(null);
+        setFeedback({
+          type: 'success',
+          text: 'Suscripción cancelada. Tu cuenta volvió al PlanGratuito base (5 GB).',
+        });
+        if (onRefreshUser) {
+          onRefreshUser({ espacioDisponible: 5 * GB_BYTES });
+        }
+      }
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        text: err.message || 'No se pudo cancelar la suscripción.',
+      });
+    } finally {
+      setCanceling(false);
     }
-    setCanceling(false);
   }
 
   // Si el usuario abrió la Pasarela de Pagos, renderiza la vista desacoplada
@@ -342,8 +395,12 @@ function SuscripcionesView({ onRefreshUser }) {
         mode={checkoutState.mode}
         currentPlanName={currentPlanLabel}
         onBack={() => setCheckoutState(null)}
-        onPaymentSuccess={handleSimulatedPaymentSuccess}
-        onPaymentRejected={(rejectedRecord) => prependPayment(rejectedRecord)}
+        onPaymentSuccess={handlePaymentSuccess}
+        onPaymentRejected={(rejectedRecord) => {
+          if (rejectedRecord) {
+            prependPayment(rejectedRecord);
+          }
+        }}
       />
     );
   }

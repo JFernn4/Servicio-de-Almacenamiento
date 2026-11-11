@@ -1,4 +1,5 @@
 import { query, withTransaction } from '../config/db.js';
+import { HIDDEN_FOLDERS_CTE } from './folderRepository.js';
 
 const FILE_COLUMNS = 'id, usuario_id, carpeta_id, nombre, tamano, tipo, fecha_subida, en_papelera, fecha_eliminacion';
 

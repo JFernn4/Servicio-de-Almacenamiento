@@ -94,22 +94,25 @@ export async function findFoldersByUser(usuarioId, carpetaPadreId = null) {
 }
 
 /**
- * Obtiene todas las carpetas del usuario.
+ * Obtiene todas las carpetas visibles del usuario (excluye las que están en la papelera).
  */
 export async function findAllFoldersByUser(usuarioId) {
   const { rows } = await query(
-    `SELECT
+    `WITH RECURSIVE ${HIDDEN_FOLDERS_CTE}
+     SELECT
        c.id,
        c.usuario_id,
        c.carpeta_padre_id,
        c.nombre,
        c.fecha_creacion,
        (
-         (SELECT COUNT(*) FROM carpeta sub WHERE sub.carpeta_padre_id = c.id) +
+         (SELECT COUNT(*) FROM carpeta sub WHERE sub.carpeta_padre_id = c.id AND sub.en_papelera = FALSE) +
          (SELECT COUNT(*) FROM archivo a WHERE a.carpeta_id = c.id AND a.en_papelera = FALSE)
        )::int AS total_elementos
      FROM carpeta c
      WHERE c.usuario_id = $1
+       AND c.en_papelera = FALSE
+       AND c.id NOT IN (SELECT id FROM ocultas)
      ORDER BY c.nombre ASC`,
     [usuarioId]
   );

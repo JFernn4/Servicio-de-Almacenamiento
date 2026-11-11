@@ -66,6 +66,8 @@ erDiagram
         int carpeta_padre_id FK "nullable"
         string nombre
         date fecha_creacion
+        boolean en_papelera "nuevo"
+        date fecha_eliminacion "nuevo, nullable"
     }
 
     ARCHIVO {
@@ -76,4 +78,6 @@ erDiagram
         long tamano
         string tipo
         date fecha_subida
+        boolean en_papelera
+        date fecha_eliminacion "nullable"
     }

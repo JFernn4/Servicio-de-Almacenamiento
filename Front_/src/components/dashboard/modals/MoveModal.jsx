@@ -173,7 +173,7 @@ function MoveModal({ isOpen, file, currentFolderId = null, onClose, onConfirm })
         <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
           {error && (
             <div style={{ marginBottom: 14 }}>
-              <Alert variant="error">{error}</Alert>
+              <Alert type="error">{error}</Alert>
             </div>
           )}
 

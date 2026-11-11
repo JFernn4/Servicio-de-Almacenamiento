@@ -121,17 +121,33 @@ function PaymentGatewayScreen({
           ? await renewActiveSubscription(payload)
           : await subscribeOrChangePlan(payload);
 
-        const nextReceipt = {
+        const normalizedPayment = {
+          id: response.pago?.id || `pay-${Date.now()}`,
           referencia: response.pago?.referencia || generateReference(isRenewal ? 'REN' : 'SUB'),
+          planId: plan.id,
+          planNombre: response.suscripcionActiva?.planNombre || plan.name || plan.nombre,
+          tipo: response.pago?.tipo || (isRenewal ? 'renovacion' : 'contratacion'),
           monto: Number(response.pago?.monto ?? price),
-          tarjetaUltimos4: response.pago?.tarjeta_ultimos4 || last4,
+          tarjetaUltimos4: response.pago?.tarjeta_ultimos4 || response.pago?.tarjetaUltimos4 || last4,
+          estado: response.pago?.estado || 'aprobado',
           fecha: response.pago?.fecha || new Date().toISOString(),
-          planNombre: plan.name || plan.nombre,
-          claseDecorador: decoratorClass,
-          almacenamiento: storageLabel,
+        };
+
+        const nextReceipt = {
+          referencia: normalizedPayment.referencia,
+          monto: normalizedPayment.monto,
+          tarjetaUltimos4: normalizedPayment.tarjetaUltimos4,
+          fecha: normalizedPayment.fecha,
+          planNombre: normalizedPayment.planNombre,
+          claseDecorador: response.planDecorado?.clase || decoratorClass,
+          almacenamiento: response.planDecorado?.almacenamientoGb
+            ? `${response.planDecorado.almacenamientoGb} GB`
+            : storageLabel,
           mensaje:
             response.message ||
-            `Se activó el Plan ${plan.name || plan.nombre} (${storageLabel}) exitosamente en tu cuenta.`,
+            (isRenewal
+              ? `Tu suscripción al Plan ${plan.name || plan.nombre} fue renovada por +${vigenciaDias} días adicionales.`
+              : `Se activó el Plan ${plan.name || plan.nombre} (${storageLabel}) exitosamente en tu cuenta.`),
         };
 
         setReceipt(nextReceipt);
@@ -141,14 +157,26 @@ function PaymentGatewayScreen({
           await onPaymentSuccess({
             plan,
             mode,
-            pago: response.pago,
+            pago: normalizedPayment,
+            resultado: response,
             backendSynced: true,
           });
         }
         return;
       } catch (err) {
-        if (onPaymentRejected) {
-          onPaymentRejected();
+        const rejectedPago = err.data?.pago;
+        if (err.status === 402 && onPaymentRejected) {
+          onPaymentRejected({
+            id: rejectedPago?.id || `pay-${Date.now()}`,
+            referencia: rejectedPago?.referencia || generateReference(isRenewal ? 'REN' : 'SUB'),
+            planId: plan.id,
+            planNombre: plan.name || plan.nombre,
+            tipo: rejectedPago?.tipo || (isRenewal ? 'renovacion' : 'contratacion'),
+            monto: Number(rejectedPago?.monto ?? price),
+            tarjetaUltimos4: rejectedPago?.tarjeta_ultimos4 || rejectedPago?.tarjetaUltimos4 || last4,
+            estado: 'rechazado',
+            fecha: rejectedPago?.fecha || new Date().toISOString(),
+          });
         }
         setErrorMessage(
           err.message ||
@@ -170,36 +198,53 @@ function PaymentGatewayScreen({
         id: `pay-${Date.now()}`,
         referencia,
         planId: plan.id,
-        planNombre: resultado.suscripcionActiva?.planNombre || plan.name || plan.nombre,
+        planNombre: plan.name || plan.nombre,
         tipo: isRenewal ? 'renovacion' : 'contratacion',
-        monto: Number(resultado.pago?.monto ?? price),
-        tarjetaUltimos4: resultado.pago?.tarjeta_ultimos4 || last4,
-        estado: 'aprobado',
-        fecha: resultado.pago?.fecha || new Date().toISOString(),
+        monto: price,
+        tarjetaUltimos4: last4,
+        estado: 'rechazado',
+        fecha: nowIso,
       };
-
-      const nextReceipt = {
-        referencia: paymentRecord.referencia,
-        monto: paymentRecord.monto,
-        tarjetaUltimos4: paymentRecord.tarjetaUltimos4,
-        fecha: paymentRecord.fecha,
-        planNombre: resultado.suscripcionActiva?.planNombre || plan.name || plan.nombre,
-        claseDecorador: resultado.planDecorado?.clase || decoratorClass,
-        almacenamiento: resultado.planDecorado?.almacenamientoGb
-          ? `${resultado.planDecorado.almacenamientoGb} GB`
-          : storageLabel,
-        mensaje:
-          resultado.message ||
-          (isRenewal
-            ? `Tu suscripción al Plan ${plan.name || plan.nombre} fue renovada por +${vigenciaDias} días adicionales.`
-            : `Se activó el Plan ${plan.name || plan.nombre} (${storageLabel}) exitosamente en tu cuenta.`),
-      };
-
-      setReceipt(nextReceipt);
+      if (onPaymentRejected) {
+        onPaymentRejected(rejectedRecord);
+      }
+      setErrorMessage(
+        `El pago fue rechazado por el banco emisor (tarjeta terminada en •••• ${last4}). Intenta con otra tarjeta.`
+      );
       setSubmitting(false);
+      return;
+    }
+
+    const paymentRecord = {
+      id: `pay-${Date.now()}`,
+      referencia,
+      planId: plan.id,
+      planNombre: plan.name || plan.nombre,
+      tipo: isRenewal ? 'renovacion' : 'contratacion',
+      monto: price,
+      tarjetaUltimos4: last4,
+      estado: 'aprobado',
+      fecha: nowIso,
+    };
+
+    const nextReceipt = {
+      referencia: paymentRecord.referencia,
+      monto: paymentRecord.monto,
+      tarjetaUltimos4: paymentRecord.tarjetaUltimos4,
+      fecha: paymentRecord.fecha,
+      planNombre: plan.name || plan.nombre,
+      claseDecorador: decoratorClass,
+      almacenamiento: storageLabel,
+      mensaje: isRenewal
+        ? `Tu suscripción al Plan ${plan.name || plan.nombre} fue renovada por +${vigenciaDias} días adicionales.`
+        : `Se activó el Plan ${plan.name || plan.nombre} (${storageLabel}) exitosamente en tu cuenta.`,
+    };
+
+    setReceipt(nextReceipt);
+    setSubmitting(false);
 
     if (onPaymentSuccess) {
-      onPaymentSuccess({
+      await onPaymentSuccess({
         plan,
         mode,
         pago: paymentRecord,
@@ -654,7 +699,7 @@ function PaymentGatewayScreen({
 
             {errorMessage && (
               <div style={{ marginBottom: 16 }}>
-                <Alert variant="error">{errorMessage}</Alert>
+                <Alert type="error">{errorMessage}</Alert>
               </div>
             )}
 
