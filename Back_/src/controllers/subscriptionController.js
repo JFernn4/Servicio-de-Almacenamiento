@@ -33,6 +33,8 @@ export async function subscribeOrChangePlan(req, res) {
 
   if (!resultado.aprobado) {
     return res.status(402).json({
+      error:
+        'El pago fue rechazado por la pasarela simulada. La transacción ha sido registrada en el historial de pagos.',
       message:
         'El pago fue rechazado por la pasarela simulada. La transacción ha sido registrada en el historial de pagos.',
       ...resultado,
@@ -57,6 +59,8 @@ export async function renewSubscription(req, res) {
 
   if (!resultado.aprobado) {
     return res.status(402).json({
+      error:
+        'El pago de renovación fue rechazado por la pasarela simulada. El intento quedó registrado en el historial.',
       message:
         'El pago de renovación fue rechazado por la pasarela simulada. El intento quedó registrado en el historial.',
       ...resultado,

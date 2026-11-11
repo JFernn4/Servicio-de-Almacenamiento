@@ -11,6 +11,7 @@
     "test:email:preview": "node src/scripts/testEmail.js --preview",
     "test:email:verify": "node src/scripts/testEmail.js --verify",
     "test:email:verify:preview": "node src/scripts/testEmail.js --verify --preview",
+    "trash:purge": "node src/scripts/purgeTrash.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -33,6 +34,7 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.12.1",
     "multer": "^2.4.0",
+    "node-cron": "^4.6.0",
     "nodemailer": "^10.0.11",
     "pg": "^8.23.0"
   }

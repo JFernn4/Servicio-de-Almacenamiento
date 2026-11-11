@@ -4,13 +4,14 @@ import ConfirmDialog from '../../ui/ConfirmDialog';
 import { useConfirm } from '../../../hooks/useConfirm';
 import RenameModal from '../modals/RenameModal';
 import ShareModal from '../modals/ShareModal';
+import MoveModal from '../modals/MoveModal';
 import ViewHeader from '../ViewHeader';
 import SearchInput from '../SearchInput';
 import EmptyState from '../EmptyState';
 import FileTable from '../FileTable';
 import { sectionLabelStyle } from '../../../styles/theme';
 import { mapFileForTable } from '../../../utils/user';
-import { fetchRecentFiles, previewFile, shareFile, downloadFile, renameFile, deleteFile } from '../../../services/storageService';
+import { fetchRecentFiles, previewFile, shareFile, downloadFile, renameFile, moveFile, deleteFile } from '../../../services/storageService';
 
 function RecientesView({ onRefreshUser }) {
   const [files, setFiles] = useState([]);
@@ -19,6 +20,7 @@ function RecientesView({ onRefreshUser }) {
   const { askConfirm, confirmDialogProps } = useConfirm();
   const [renameTarget, setRenameTarget] = useState(null);
   const [shareTarget, setShareTarget] = useState(null);
+  const [moveTarget, setMoveTarget] = useState(null);
 
   async function loadRecent() {
     try {
@@ -72,6 +74,15 @@ function RecientesView({ onRefreshUser }) {
     await loadRecent();
   }
 
+  async function handleConfirmMove(targetFolderId) {
+    if (!moveTarget) return;
+    setFeedback(null);
+    const data = await moveFile(moveTarget.id, targetFolderId);
+    setFeedback({ type: 'success', msg: data.message || 'Archivo movido exitosamente.' });
+    await loadRecent();
+    if (onRefreshUser) await onRefreshUser();
+  }
+
   async function handleDelete(file) {
     const accepted = await askConfirm({
       title: 'Eliminar archivo',
@@ -123,6 +134,7 @@ function RecientesView({ onRefreshUser }) {
             onShare={handleShare}
             onDownload={handleDownload}
             onRename={handleRename}
+            onMove={setMoveTarget}
             onDelete={handleDelete}
           />
         )}
@@ -144,6 +156,14 @@ function RecientesView({ onRefreshUser }) {
         onShare={async (file, correo) => {
           return await shareFile(file.id, correo);
         }}
+      />
+
+      <MoveModal
+        isOpen={Boolean(moveTarget)}
+        file={moveTarget}
+        currentFolderId={moveTarget?.carpetaId ?? null}
+        onClose={() => setMoveTarget(null)}
+        onConfirm={handleConfirmMove}
       />
     </div>
   );

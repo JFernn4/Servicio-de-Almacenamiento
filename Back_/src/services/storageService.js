@@ -201,9 +201,39 @@ export async function permanentDeleteFile(archivoId, usuarioId) {
 }
 
 /**
+ * Purga de la papelera todos los archivos cuya fecha_eliminacion tenga más de 30 días
+ * (o los días de retención especificados), eliminando sus metadatos de PostgreSQL,
+ * recalculando la cuota de cada usuario afectado y borrando los archivos físicos de disco/storage.
+ */
+export async function purgeExpiredTrash({ retentionDays = 30, usuarioId = null } = {}) {
+  const eliminados = await fileRepository.purgeExpiredTrashFiles(retentionDays, usuarioId);
+
+  if (eliminados.length > 0) {
+    await fileStorage.removeMany(eliminados);
+  }
+
+  const totalBytesLiberados = eliminados.reduce((acc, f) => acc + Number(f.tamano || 0), 0);
+
+  return {
+    eliminadosCount: eliminados.length,
+    bytesLiberados: totalBytesLiberados,
+    archivos: eliminados.map((f) => ({
+      id: f.id,
+      nombre: f.nombre,
+      tamano: Number(f.tamano),
+      usuarioId: f.usuario_id,
+    })),
+  };
+}
+
+/**
  * Lista los archivos que se encuentran actualmente en la papelera del usuario.
+ * Antes de listarlos, ejecuta una purga pasiva automática de archivos vencidos (> 30 días).
  */
 export async function getTrashFiles(usuarioId) {
+  await purgeExpiredTrash({ retentionDays: 30, usuarioId }).catch((err) => {
+    console.error('[TrashAutoPurge] Error en purga pasiva para usuario', usuarioId, err.message);
+  });
   return fileRepository.findTrashFilesByUser(usuarioId);
 }
 
@@ -274,6 +304,52 @@ export async function renameFile(archivoId, usuarioId, nuevoNombre) {
 
   const archivoActualizado = await fileRepository.renameFile(archivoId, usuarioId, nuevoNombre ? nombreFinal : archivo.nombre);
   return archivoActualizado;
+}
+
+/**
+ * Mueve un archivo a otra carpeta (o a la raíz si carpetaId es null).
+ */
+export async function moveFile(archivoId, usuarioId, carpetaId = null) {
+  const archivo = await fileRepository.findFileByIdAndUser(archivoId, usuarioId);
+  if (!archivo) {
+    throw new HttpError(404, 'Archivo no encontrado o no tienes permisos para moverlo.');
+  }
+
+  if (archivo.en_papelera) {
+    throw new HttpError(400, 'No puedes mover un archivo que se encuentra en la papelera.');
+  }
+
+  let nombreDestino = 'Mi unidad';
+  let targetFolderId = null;
+
+  if (carpetaId !== null && carpetaId !== undefined && carpetaId !== '' && carpetaId !== 'root') {
+    const carpeta = await folderRepository.findFolderByIdAndUser(carpetaId, usuarioId);
+    if (!carpeta) {
+      throw new HttpError(404, 'La carpeta de destino no existe o no tienes acceso a ella.');
+    }
+    nombreDestino = carpeta.nombre;
+    targetFolderId = carpeta.id;
+  }
+
+  if ((archivo.carpeta_id ?? null) === targetFolderId) {
+    return {
+      archivo,
+      mensaje: `El archivo ya se encuentra en "${nombreDestino}".`,
+    };
+  }
+
+  const archivoActualizado = await fileRepository.moveFile(archivoId, usuarioId, targetFolderId);
+  return {
+    archivo: archivoActualizado,
+    mensaje: `Archivo movido exitosamente a "${nombreDestino}".`,
+  };
+}
+
+/**
+ * Obtiene todas las carpetas del usuario.
+ */
+export async function getAllFolders(usuarioId) {
+  return folderRepository.findAllFoldersByUser(usuarioId);
 }
 
 /**

@@ -74,6 +74,7 @@ export function mapFileForTable(archivo) {
     : archivo.fecha_subida;
   return {
     id: archivo.id,
+    carpetaId: archivo.carpeta_id || null,
     name: archivo.nombre,
     type,
     color,

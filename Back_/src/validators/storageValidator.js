@@ -53,3 +53,17 @@ export function validateRename(body = {}) {
 
   return { nuevoNombre };
 }
+
+/**
+ * Valida los datos requeridos para mover un archivo a otra carpeta.
+ */
+export function validateMoveFile(body = {}) {
+  const rawTarget = body.carpetaId ?? body.nuevaCarpetaId ?? body.targetFolderId;
+  let carpetaId = null;
+
+  if (rawTarget !== undefined && rawTarget !== null && rawTarget !== '' && rawTarget !== 'root') {
+    carpetaId = validateId(rawTarget, 'carpeta de destino');
+  }
+
+  return { carpetaId };
+}

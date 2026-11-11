@@ -5,6 +5,7 @@ import ConfirmDialog from '../../ui/ConfirmDialog';
 import { useConfirm } from '../../../hooks/useConfirm';
 import RenameModal from '../modals/RenameModal';
 import ShareModal from '../modals/ShareModal';
+import MoveModal from '../modals/MoveModal';
 import ViewHeader from '../ViewHeader';
 import SearchInput from '../SearchInput';
 import EmptyState from '../EmptyState';
@@ -19,6 +20,7 @@ import {
   downloadFile,
   shareFile,
   renameFile,
+  moveFile,
   deleteFile,
   createFolder,
   renameFolder,
@@ -79,9 +81,10 @@ function MisArchivosView({ onRefreshUser }) {
 
   // Diálogo de confirmación propio (en lugar de window.confirm)
   const { askConfirm, confirmDialogProps } = useConfirm();
-  // Modales interactivos para renombrar y compartir
+  // Modales interactivos para renombrar, compartir y mover
   const [renameTarget, setRenameTarget] = useState(null);
   const [shareTarget, setShareTarget] = useState(null);
+  const [moveTarget, setMoveTarget] = useState(null);
   // Archivos arrastrados sobre el recuadro de "espacio vacío"
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
 
@@ -257,6 +260,19 @@ function MisArchivosView({ onRefreshUser }) {
       setFeedback({ type: 'success', msg: data.message || 'Archivo renombrado.' });
     }
     await loadCurrentDirectory(currentFolder?.id ?? null);
+  }
+
+  function handleMoveFile(file) {
+    setMoveTarget(file);
+  }
+
+  async function handleConfirmMove(targetFolderId) {
+    if (!moveTarget) return;
+    setFeedback(null);
+    const data = await moveFile(moveTarget.id, targetFolderId);
+    setFeedback({ type: 'success', msg: data.message || 'Archivo movido exitosamente.' });
+    await loadCurrentDirectory(currentFolder?.id ?? null);
+    if (onRefreshUser) await onRefreshUser();
   }
 
   async function handleDeleteFolder(folder) {
@@ -543,6 +559,7 @@ function MisArchivosView({ onRefreshUser }) {
             onShare={handleShareFile}
             onDownload={handleDownloadFile}
             onRename={handleRenameFile}
+            onMove={handleMoveFile}
             onDelete={handleDeleteFile}
           />
         )}
@@ -724,6 +741,14 @@ function MisArchivosView({ onRefreshUser }) {
         onShare={async (file, correo) => {
           return await shareFile(file.id, correo);
         }}
+      />
+
+      <MoveModal
+        isOpen={Boolean(moveTarget)}
+        file={moveTarget}
+        currentFolderId={currentFolder?.id ?? null}
+        onClose={() => setMoveTarget(null)}
+        onConfirm={handleConfirmMove}
       />
     </div>
   );

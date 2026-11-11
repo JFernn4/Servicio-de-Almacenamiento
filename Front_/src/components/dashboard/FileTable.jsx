@@ -13,6 +13,7 @@ function FileTable({
   onDownload,
   onShare,
   onRename,
+  onMove,
   onRestore,
   onDelete,
   deleteLabel = 'Eliminar',
@@ -67,7 +68,7 @@ function FileTable({
             <div style={{ flex: 1 }}>{file.size}</div>
             <div style={{ flex: 1 }}>{file.date}</div>
 
-            {(onPreview || onDownload || onShare || onRename || onRestore || onDelete) && (
+            {(onPreview || onDownload || onShare || onRename || onMove || onRestore || onDelete) && (
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
@@ -157,6 +158,18 @@ function FileTable({
                         style={{ ...resetButtonStyle, display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', fontSize: 13, fontWeight: 600, color: colors.primaryDark }}
                       >
                         Renombrar
+                      </button>
+                    )}
+                    {onMove && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          onMove(file);
+                        }}
+                        style={{ ...resetButtonStyle, display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', fontSize: 13, fontWeight: 600, color: colors.primaryDark }}
+                      >
+                        Mover a...
                       </button>
                     )}
                     {onDelete && (

@@ -15,6 +15,13 @@ export function fetchMySubscription() {
 }
 
 /**
+ * Endpoint alternativo para consultar la suscripción activa del usuario.
+ */
+export function fetchActiveSubscription() {
+  return request('/subscriptions/active');
+}
+
+/**
  * Contrata un plan o cambia el plan actual del usuario a través de la pasarela de pagos.
  */
 export function subscribeOrChangePlan({ planId, numeroTarjeta, tarjetaUltimos4, simularRechazo = false }) {

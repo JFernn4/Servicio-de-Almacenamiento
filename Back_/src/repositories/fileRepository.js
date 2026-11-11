@@ -1,4 +1,4 @@
-import { query } from '../config/db.js';
+import { query, withTransaction } from '../config/db.js';
 
 const FILE_COLUMNS = 'id, usuario_id, carpeta_id, nombre, tamano, tipo, fecha_subida, en_papelera, fecha_eliminacion';
 
@@ -141,6 +141,20 @@ export async function renameFile(id, usuarioId, nuevoNombre) {
 }
 
 /**
+ * Mueve un archivo a otra carpeta (o a la raíz si nuevaCarpetaId es null).
+ */
+export async function moveFile(id, usuarioId, nuevaCarpetaId = null) {
+  const { rows } = await query(
+    `UPDATE archivo
+     SET carpeta_id = $1
+     WHERE id = $2 AND usuario_id = $3
+     RETURNING ${FILE_COLUMNS}`,
+    [nuevaCarpetaId, id, usuarioId]
+  );
+  return rows[0] ?? null;
+}
+
+/**
  * Elimina permanentemente el registro de un archivo de la base de datos.
  */
 export async function deleteFile(id, usuarioId) {
@@ -164,4 +178,57 @@ export async function deleteAllTrashFilesByUser(usuarioId) {
     [usuarioId]
   );
   return rows;
+}
+
+/**
+ * Busca y elimina permanentemente los archivos en papelera que superen los días de retención
+ * (por defecto 30 días), decrementando en una sola transacción ACID el espacio consumido
+ * de cada usuario afectado.
+ */
+export async function purgeExpiredTrashFiles(retentionDays = 30, usuarioId = null) {
+  return withTransaction(async (client) => {
+    const params = [retentionDays];
+    let userFilter = '';
+
+    if (usuarioId !== null && usuarioId !== undefined) {
+      params.push(usuarioId);
+      userFilter = 'AND usuario_id = $2';
+    }
+
+    // 1. Eliminar los archivos vencidos en papelera y retornar los metadatos completos
+    const { rows: deletedFiles } = await client.query(
+      `DELETE FROM archivo
+       WHERE en_papelera = TRUE
+         AND fecha_eliminacion <= (CURRENT_DATE - ($1 || ' days')::interval)::date
+         ${userFilter}
+       RETURNING ${FILE_COLUMNS}`,
+      params
+    );
+
+    if (deletedFiles.length === 0) {
+      return [];
+    }
+
+    // 2. Agrupar los bytes a liberar por cada usuario afectado
+    const bytesByUser = new Map();
+    for (const file of deletedFiles) {
+      const uid = file.usuario_id;
+      const size = Number(file.tamano || 0);
+      bytesByUser.set(uid, (bytesByUser.get(uid) || 0) + size);
+    }
+
+    // 3. Decrementar espacio consumido para cada usuario afectado
+    for (const [uid, bytes] of bytesByUser.entries()) {
+      if (bytes > 0) {
+        await client.query(
+          `UPDATE usuario
+           SET espacio_consumido = GREATEST(0, espacio_consumido - $1)
+           WHERE id = $2`,
+          [bytes, uid]
+        );
+      }
+    }
+
+    return deletedFiles;
+  });
 }

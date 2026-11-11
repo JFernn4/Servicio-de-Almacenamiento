@@ -14,9 +14,13 @@ if (config.storage.driver === 'supabase' && (!config.storage.supabase.url || !co
 
 // La app se importa después de validar: al cargarse crea el proveedor de almacenamiento
 const { default: app } = await import('./app.js');
+const { startTrashRetentionCron } = await import('./services/trashRetentionService.js');
 
 app.listen(config.port, () => {
   console.log(`[Servidor] Escuchando en http://localhost:${config.port}`);
   console.log(`[Health check] Disponible en http://localhost:${config.port}/api/health`);
   console.log(`[Almacenamiento] ${config.storage.driver}${config.storage.maxUploadBytes ? ` · máximo ${config.storage.maxUploadBytes / (1024 * 1024)} MB por archivo` : ''}`);
+
+  // Iniciar tarea programada de retención automática de papelera (30 días)
+  startTrashRetentionCron();
 });

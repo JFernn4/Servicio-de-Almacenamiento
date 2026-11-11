@@ -20,6 +20,7 @@ router.post('/decorator-preview', previewDecoratorChain);
 router.use(authenticateToken);
 
 router.get('/me', getMySubscription);
+router.get('/active', getMySubscription);
 router.post('/subscribe', subscribeOrChangePlan);
 router.post('/change', subscribeOrChangePlan);
 router.post('/renew', renewSubscription);

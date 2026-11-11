@@ -1,6 +1,6 @@
 import { pipeline } from 'stream/promises';
 import * as storageService from '../services/storageService.js';
-import { validateId, validateCreateFolder, validateRename } from '../validators/storageValidator.js';
+import { validateId, validateCreateFolder, validateRename, validateMoveFile } from '../validators/storageValidator.js';
 
 /**
  * Envía el contenido de un archivo por streaming, venga del disco o de Supabase (patrón Bridge).
@@ -136,6 +136,31 @@ export async function renameFile(req, res) {
     message: 'Archivo renombrado exitosamente.',
     archivo,
   });
+}
+
+/**
+ * PATCH /api/storage/files/:id/move
+ * Mueve un archivo a otra carpeta (o a la raíz si carpetaId es null).
+ */
+export async function moveFile(req, res) {
+  const archivoId = validateId(req.params.id, 'archivo');
+  const { carpetaId } = validateMoveFile(req.body);
+
+  const resultado = await storageService.moveFile(archivoId, req.user.id, carpetaId);
+
+  res.status(200).json({
+    message: resultado.mensaje,
+    archivo: resultado.archivo,
+  });
+}
+
+/**
+ * GET /api/storage/folders
+ * Lista todas las carpetas del usuario.
+ */
+export async function getAllFolders(req, res) {
+  const carpetas = await storageService.getAllFolders(req.user.id);
+  res.status(200).json({ carpetas });
 }
 
 /**

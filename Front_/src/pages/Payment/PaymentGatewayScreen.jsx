@@ -3,6 +3,10 @@ import { colors, sectionLabelStyle } from '../../styles/theme';
 import Icon from '../../components/ui/Icon';
 import Button from '../../components/ui/Button';
 import Alert from '../../components/ui/Alert';
+import {
+  subscribeOrChangePlan,
+  renewActiveSubscription,
+} from '../../services/subscriptionService';
 
 function formatCardNumber(value) {
   const digits = String(value || '').replace(/\D/g, '').slice(0, 16);
@@ -99,69 +103,99 @@ function PaymentGatewayScreen({
     }
 
     setSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 550));
 
     const last4 = cleanDigits.slice(-4);
     const isRejected = simulateReject || last4 === '0000';
-    const referencia = generateReference(isRenewal ? 'REN' : 'SUB');
-    const nowIso = new Date().toISOString();
 
-    if (isRejected) {
-      const rejectedRecord = {
-        id: `pay-${Date.now()}`,
-        referencia,
-        planId: plan.id,
-        planNombre: plan.name || plan.nombre,
-        tipo: isRenewal ? 'renovacion' : 'contratacion',
-        monto: price,
-        tarjetaUltimos4: last4,
-        estado: 'rechazado',
-        fecha: nowIso,
-      };
-      if (onPaymentRejected) {
-        onPaymentRejected(rejectedRecord);
+    try {
+      let resultado;
+      if (isRenewal) {
+        resultado = await renewActiveSubscription({
+          numeroTarjeta: cleanDigits,
+          tarjetaUltimos4: last4,
+          simularRechazo: isRejected,
+        });
+      } else {
+        resultado = await subscribeOrChangePlan({
+          planId: plan.id,
+          numeroTarjeta: cleanDigits,
+          tarjetaUltimos4: last4,
+          simularRechazo: isRejected,
+        });
       }
-      setErrorMessage(
-        `El pago fue rechazado por el banco emisor (tarjeta terminada en •••• ${last4}). Se registró el intento con referencia ${referencia}.`
-      );
+
+      const paymentRecord = {
+        id: resultado.pago?.id || `pay-${Date.now()}`,
+        referencia: resultado.pago?.referencia || generateReference(isRenewal ? 'REN' : 'SUB'),
+        planId: plan.id,
+        planNombre: resultado.suscripcionActiva?.planNombre || plan.name || plan.nombre,
+        tipo: isRenewal ? 'renovacion' : 'contratacion',
+        monto: Number(resultado.pago?.monto ?? price),
+        tarjetaUltimos4: resultado.pago?.tarjeta_ultimos4 || last4,
+        estado: 'aprobado',
+        fecha: resultado.pago?.fecha || new Date().toISOString(),
+      };
+
+      const nextReceipt = {
+        referencia: paymentRecord.referencia,
+        monto: paymentRecord.monto,
+        tarjetaUltimos4: paymentRecord.tarjetaUltimos4,
+        fecha: paymentRecord.fecha,
+        planNombre: resultado.suscripcionActiva?.planNombre || plan.name || plan.nombre,
+        claseDecorador: resultado.planDecorado?.clase || decoratorClass,
+        almacenamiento: resultado.planDecorado?.almacenamientoGb
+          ? `${resultado.planDecorado.almacenamientoGb} GB`
+          : storageLabel,
+        mensaje:
+          resultado.message ||
+          (isRenewal
+            ? `Tu suscripción al Plan ${plan.name || plan.nombre} fue renovada por +${vigenciaDias} días adicionales.`
+            : `Se activó el Plan ${plan.name || plan.nombre} (${storageLabel}) exitosamente en tu cuenta.`),
+      };
+
+      setReceipt(nextReceipt);
       setSubmitting(false);
-      return;
-    }
 
-    const paymentRecord = {
-      id: `pay-${Date.now()}`,
-      referencia,
-      planId: plan.id,
-      planNombre: plan.name || plan.nombre,
-      tipo: isRenewal ? 'renovacion' : 'contratacion',
-      monto: price,
-      tarjetaUltimos4: last4,
-      estado: 'aprobado',
-      fecha: nowIso,
-    };
+      if (onPaymentSuccess) {
+        onPaymentSuccess({
+          plan,
+          mode,
+          pago: paymentRecord,
+          resultado,
+        });
+      }
+    } catch (err) {
+      setSubmitting(false);
 
-    const nextReceipt = {
-      referencia,
-      monto: price,
-      tarjetaUltimos4: last4,
-      fecha: nowIso,
-      planNombre: plan.name || plan.nombre,
-      claseDecorador: decoratorClass,
-      almacenamiento: storageLabel,
-      mensaje: isRenewal
-        ? `Tu suscripción al Plan ${plan.name || plan.nombre} fue renovada por +${vigenciaDias} días adicionales.`
-        : `Se activó el Plan ${plan.name || plan.nombre} (${storageLabel}) exitosamente en tu cuenta.`,
-    };
+      // Si la pasarela de pagos rechazó la transacción (código 402 del backend)
+      if (err.status === 402 || err.data?.aprobado === false) {
+        const p = err.data?.pago;
+        const rejectedRecord = {
+          id: p?.id || `pay-${Date.now()}`,
+          referencia: p?.referencia || generateReference(isRenewal ? 'REN' : 'SUB'),
+          planId: plan.id,
+          planNombre: plan.name || plan.nombre,
+          tipo: isRenewal ? 'renovacion' : 'contratacion',
+          monto: Number(p?.monto ?? price),
+          tarjetaUltimos4: p?.tarjeta_ultimos4 || last4,
+          estado: 'rechazado',
+          fecha: p?.fecha || new Date().toISOString(),
+        };
 
-    setReceipt(nextReceipt);
-    setSubmitting(false);
+        if (onPaymentRejected) {
+          onPaymentRejected(rejectedRecord);
+        }
 
-    if (onPaymentSuccess) {
-      onPaymentSuccess({
-        plan,
-        mode,
-        pago: paymentRecord,
-      });
+        setErrorMessage(
+          err.message ||
+            `El pago fue rechazado por la pasarela simulada (tarjeta terminada en •••• ${last4}). La transacción ha quedado registrada en el historial de pagos.`
+        );
+        return;
+      }
+
+      setErrorMessage(
+        err.message || 'Ocurrió un error inesperado al procesar el pago. Por favor intenta de nuevo.'
+      );
     }
   }
 

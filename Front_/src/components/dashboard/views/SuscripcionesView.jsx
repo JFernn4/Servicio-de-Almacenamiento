@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { colors, sectionLabelStyle } from '../../../styles/theme';
 import Icon from '../../ui/Icon';
 import Button from '../../ui/Button';
@@ -6,6 +6,12 @@ import Alert from '../../ui/Alert';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { useConfirm } from '../../../hooks/useConfirm';
 import PaymentGatewayScreen from '../../../pages/Payment/PaymentGatewayScreen';
+import {
+  fetchPlansCatalog,
+  fetchActiveSubscription,
+  fetchPaymentHistory,
+  cancelActiveSubscription,
+} from '../../../services/subscriptionService';
 
 const GB_BYTES = 1024 ** 3;
 
@@ -101,12 +107,13 @@ function readStoredJson(key, fallback) {
 }
 
 function SuscripcionesView({ onRefreshUser }) {
-  const [plans] = useState(DEFAULT_PLANS);
+  const [plans, setPlans] = useState(DEFAULT_PLANS);
   const [activeSub, setActiveSub] = useState(() => readStoredJson(SUB_STORAGE_KEY, null));
   const [payments, setPayments] = useState(() => readStoredJson(PAYMENTS_STORAGE_KEY, []));
   const [checkoutState, setCheckoutState] = useState(null); // { plan, mode: 'subscribe' | 'renew' }
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', text }
   const [canceling, setCanceling] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const { askConfirm, confirmDialogProps } = useConfirm();
 
@@ -135,34 +142,167 @@ function SuscripcionesView({ onRefreshUser }) {
     });
   }
 
-  function handleSimulatedPaymentSuccess({ plan, mode, pago }) {
+  async function loadSubscriptionsData() {
+    try {
+      // 1. Cargar catálogo de planes del backend
+      try {
+        const catalogData = await fetchPlansCatalog();
+        if (catalogData?.planes && Array.isArray(catalogData.planes)) {
+          const mappedPlans = [
+            // Plan Base Gratuito
+            {
+              id: null,
+              key: 'free',
+              name: 'Gratuito',
+              decoratorClass: 'PlanGratuito',
+              subtitle:
+                catalogData.planBase?.descripcionOriginal || 'Componente base del sistema',
+              price: 0,
+              storage: '5 GB',
+              storageBytes: 5 * GB_BYTES,
+              storageDesc: 'Espacio gratuito base',
+              vigenciaDias: null,
+              popular: false,
+              features:
+                catalogData.planBase?.decorator?.politicaMulter?.features ||
+                DEFAULT_PLANS[0].features,
+            },
+            // Planes del catálogo
+            ...catalogData.planes.map((p) => {
+              const gb =
+                p.decorator?.almacenamientoGb ||
+                Math.round(Number(p.capacidadCatalogo) / GB_BYTES);
+              const storage = gb >= 1024 ? `${(gb / 1024).toFixed(0)} TB` : `${gb} GB`;
+              const isPop = p.nombre.toLowerCase().includes('profesional');
+              return {
+                id: p.id,
+                key: `plan-${p.id}`,
+                name: p.nombre,
+                decoratorClass:
+                  p.decorator?.clase || (p.nombre.includes('Básico') ? 'PlanBasico' : p.nombre),
+                subtitle: p.descripcionOriginal || '',
+                price: Number(p.precioCatalogo),
+                storage,
+                storageBytes: Number(p.capacidadCatalogo),
+                storageDesc: `5 GB base + ${Math.max(0, gb - 5)} GB decorador ${p.nombre}`,
+                vigenciaDias: Number(p.vigenciaDias) || 30,
+                popular: isPop,
+                features:
+                  p.decorator?.politicaMulter?.features ||
+                  DEFAULT_PLANS.find((dp) => dp.id === p.id)?.features ||
+                  [],
+                decorator: p.decorator,
+              };
+            }),
+          ];
+          setPlans(mappedPlans);
+        }
+      } catch (err) {
+        console.warn('No se pudo obtener el catálogo de planes desde el backend:', err);
+      }
+
+      // 2. Cargar suscripción activa del usuario desde el backend (GET /api/subscriptions/active)
+      try {
+        const subData = await fetchActiveSubscription();
+        if (subData?.suscripcionActiva) {
+          const sub = subData.suscripcionActiva;
+          const dec = subData.planDecorado;
+          const loadedSub = {
+            planId: sub.planId,
+            planNombre: sub.planNombre,
+            decoratorClass: dec?.clase || sub.planNombre,
+            vigenciaDias: Number(sub.vigenciaDias),
+            diasRestantes: Number(sub.diasRestantes),
+            fechaRenovacion: sub.fechaRenovacion,
+            storageBytes: Number(sub.capacidadAlmacenamiento),
+          };
+          saveSubscription(loadedSub);
+        } else {
+          saveSubscription(null);
+        }
+      } catch (err) {
+        console.warn('No se pudo obtener la suscripción activa desde el backend:', err);
+      }
+
+      // 3. Cargar historial de pagos desde el backend (GET /api/subscriptions/payments)
+      try {
+        const paymentsList = await fetchPaymentHistory();
+        if (Array.isArray(paymentsList)) {
+          setPayments(paymentsList);
+          try {
+            localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(paymentsList));
+          } catch {
+            // ignore
+          }
+        }
+      } catch (err) {
+        console.warn('No se pudo obtener el historial de pagos desde el backend:', err);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadSubscriptionsData();
+  }, []);
+
+  async function handlePaymentSuccess({ plan, mode, pago, resultado }) {
     const isRenew = mode === 'renew';
-    const addedDays = plan.vigenciaDias || 30;
-    const currentRemaining = isRenew && activeSub ? Number(activeSub.diasRestantes || 0) : 0;
-    const totalDays = currentRemaining + addedDays;
-    const renewalDate = new Date(Date.now() + totalDays * 24 * 60 * 60 * 1000).toISOString();
 
-    const nextSub = {
-      planId: plan.id,
-      planNombre: plan.name,
-      decoratorClass: plan.decoratorClass,
-      vigenciaDias: addedDays,
-      diasRestantes: totalDays,
-      fechaRenovacion: renewalDate,
-      storageBytes: plan.storageBytes,
-    };
+    // Si el backend retornó el estado actualizado de la suscripción
+    if (resultado?.suscripcionActiva) {
+      const sub = resultado.suscripcionActiva;
+      const dec = resultado.planDecorado;
+      const nextSub = {
+        planId: sub.planId,
+        planNombre: sub.planNombre,
+        decoratorClass: dec?.clase || sub.planNombre,
+        vigenciaDias: Number(sub.vigenciaDias),
+        diasRestantes: Number(sub.diasRestantes),
+        fechaRenovacion: sub.fechaRenovacion,
+        storageBytes: Number(sub.capacidadAlmacenamiento),
+      };
+      saveSubscription(nextSub);
+    } else {
+      const addedDays = plan.vigenciaDias || 30;
+      const currentRemaining = isRenew && activeSub ? Number(activeSub.diasRestantes || 0) : 0;
+      const totalDays = currentRemaining + addedDays;
+      const renewalDate = new Date(Date.now() + totalDays * 24 * 60 * 60 * 1000).toISOString();
 
-    saveSubscription(nextSub);
-    prependPayment(pago);
+      const nextSub = {
+        planId: plan.id,
+        planNombre: plan.name,
+        decoratorClass: plan.decoratorClass,
+        vigenciaDias: addedDays,
+        diasRestantes: totalDays,
+        fechaRenovacion: renewalDate,
+        storageBytes: plan.storageBytes,
+      };
+      saveSubscription(nextSub);
+    }
+
+    // Refrescar historial de pagos desde el backend
+    try {
+      const latestPayments = await fetchPaymentHistory();
+      setPayments(latestPayments);
+      localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(latestPayments));
+    } catch {
+      if (pago) prependPayment(pago);
+    }
+
     setFeedback({
       type: 'success',
-      text: isRenew
-        ? `Suscripción al Plan ${plan.name} renovada exitosamente (+${addedDays} días).`
-        : `Plan ${plan.name} (${plan.storage}) activado exitosamente.`,
+      text:
+        resultado?.message ||
+        (isRenew
+          ? `Suscripción al Plan ${plan.name} renovada exitosamente (+${plan.vigenciaDias || 30} días).`
+          : `Plan ${plan.name} (${plan.storage}) activado exitosamente.`),
     });
 
+    // Actualizar la cuota del usuario en el estado global del frontend
     if (onRefreshUser) {
-      onRefreshUser({ espacioDisponible: plan.storageBytes });
+      await onRefreshUser();
     }
   }
 
@@ -177,17 +317,36 @@ function SuscripcionesView({ onRefreshUser }) {
 
     setCanceling(true);
     setFeedback(null);
-    await new Promise((resolve) => setTimeout(resolve, 300));
 
-    saveSubscription(null);
-    setFeedback({
-      type: 'success',
-      text: 'Suscripción cancelada. Tu cuenta volvió al PlanGratuito base (5 GB).',
-    });
-    if (onRefreshUser) {
-      onRefreshUser({ espacioDisponible: 5 * GB_BYTES });
+    try {
+      const res = await cancelActiveSubscription();
+      saveSubscription(null);
+      setFeedback({
+        type: 'success',
+        text:
+          res?.message ||
+          'Suscripción cancelada exitosamente. Tu cuenta ha vuelto al PlanGratuito base (5 GB).',
+      });
+
+      if (onRefreshUser) {
+        await onRefreshUser();
+      }
+
+      try {
+        const latestPayments = await fetchPaymentHistory();
+        setPayments(latestPayments);
+        localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(latestPayments));
+      } catch {
+        // ignore
+      }
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        text: err.message || 'Error al cancelar la suscripción.',
+      });
+    } finally {
+      setCanceling(false);
     }
-    setCanceling(false);
   }
 
   // Si el usuario abrió la Pasarela de Pagos, renderiza la vista desacoplada
@@ -199,8 +358,11 @@ function SuscripcionesView({ onRefreshUser }) {
         mode={checkoutState.mode}
         currentPlanName={currentPlanLabel}
         onBack={() => setCheckoutState(null)}
-        onPaymentSuccess={handleSimulatedPaymentSuccess}
-        onPaymentRejected={(rejectedRecord) => prependPayment(rejectedRecord)}
+        onPaymentSuccess={handlePaymentSuccess}
+        onPaymentRejected={(rejectedRecord) => {
+          prependPayment(rejectedRecord);
+          fetchPaymentHistory().then(setPayments).catch(() => {});
+        }}
       />
     );
   }

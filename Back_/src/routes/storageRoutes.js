@@ -8,6 +8,7 @@ import {
   downloadSharedFile,
   deleteFile,
   renameFile,
+  moveFile,
   getDirectoryContents,
   getRecentFiles,
   searchFiles,
@@ -15,6 +16,7 @@ import {
   restoreFile,
   permanentDeleteFile,
   emptyTrash,
+  getAllFolders,
   createFolder,
   renameFolder,
   deleteFolder,
@@ -41,6 +43,7 @@ router.get('/files/:id/view', viewFile);
 router.get('/files/:id/download', downloadFile);
 router.post('/files/:id/share', shareFile);
 router.patch('/files/:id', renameFile);
+router.patch('/files/:id/move', moveFile);
 router.delete('/files/:id', deleteFile);
 
 // --- Papelera ---
@@ -50,6 +53,7 @@ router.post('/trash/:id/restore', restoreFile);
 router.delete('/trash/:id', permanentDeleteFile);
 
 // --- Carpetas ---
+router.get('/folders', getAllFolders);
 router.post('/folders', createFolder);
 router.patch('/folders/:id', renameFolder);
 router.delete('/folders/:id', deleteFolder);

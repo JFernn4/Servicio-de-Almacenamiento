@@ -207,3 +207,21 @@ export function deleteFolder(id) {
     method: 'DELETE',
   });
 }
+
+/**
+ * Mueve un archivo a una carpeta de destino (o null para la raíz / Mi unidad).
+ */
+export function moveFile(id, carpetaId = null) {
+  return request(`/storage/files/${encodeURIComponent(id)}/move`, {
+    method: 'PATCH',
+    body: { carpetaId },
+  });
+}
+
+/**
+ * Obtiene todas las carpetas del usuario.
+ */
+export async function fetchAllFolders() {
+  const data = await request('/storage/folders');
+  return data.carpetas || [];
+}
