@@ -60,9 +60,11 @@ export async function findFilesByUser(usuarioId, carpetaId = null) {
  */
 export async function findRecentFilesByUser(usuarioId, limit = 10) {
   const { rows } = await query(
-    `SELECT ${FILE_COLUMNS}
+    `WITH RECURSIVE ${HIDDEN_FOLDERS_CTE}
+     SELECT ${FILE_COLUMNS}
      FROM archivo
      WHERE usuario_id = $1 AND en_papelera = FALSE
+       AND (carpeta_id IS NULL OR carpeta_id NOT IN (SELECT id FROM ocultas))
      ORDER BY fecha_subida DESC, id DESC
      LIMIT $2`,
     [usuarioId, limit]
@@ -75,9 +77,11 @@ export async function findRecentFilesByUser(usuarioId, limit = 10) {
  */
 export async function searchFilesByUser(usuarioId, term) {
   const { rows } = await query(
-    `SELECT ${FILE_COLUMNS}
+    `WITH RECURSIVE ${HIDDEN_FOLDERS_CTE}
+     SELECT ${FILE_COLUMNS}
      FROM archivo
      WHERE usuario_id = $1 AND en_papelera = FALSE AND nombre ILIKE $2
+       AND (carpeta_id IS NULL OR carpeta_id NOT IN (SELECT id FROM ocultas))
      ORDER BY fecha_subida DESC, id DESC`,
     [usuarioId, `%${term}%`]
   );
@@ -113,15 +117,18 @@ export async function moveFileToTrash(id, usuarioId) {
 }
 
 /**
- * Restaura un archivo desde la papelera.
+ * Restaura un archivo desde la papelera. Con `moveToRoot` lo deja en la raíz
+ * (cuando su carpeta también está en la papelera).
  */
-export async function restoreFileFromTrash(id, usuarioId) {
+export async function restoreFileFromTrash(id, usuarioId, { moveToRoot = false } = {}) {
   const { rows } = await query(
     `UPDATE archivo
-     SET en_papelera = FALSE, fecha_eliminacion = NULL
+     SET en_papelera = FALSE,
+         fecha_eliminacion = NULL,
+         carpeta_id = CASE WHEN $3 THEN NULL ELSE carpeta_id END
      WHERE id = $1 AND usuario_id = $2
      RETURNING ${FILE_COLUMNS}`,
-    [id, usuarioId]
+    [id, usuarioId, moveToRoot]
   );
   return rows[0] ?? null;
 }

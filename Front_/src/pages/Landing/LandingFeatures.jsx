@@ -39,7 +39,7 @@ function LandingFeatures() {
             Diseñado para moverte rápido sin perder el control
           </h2>
           <p style={{ fontSize: 16, color: 'rgba(255, 255, 255, 0.75)', lineHeight: 1.6, margin: 0 }}>
-            Una suite completa pensada para personas y equipos que necesitan almacenar, proteger y compartir información crítica sin fricción.
+            Una plataforma completa pensada para personas y equipos que necesitan almacenar, organizar y compartir archivos en la nube sin fricción.
           </p>
         </div>
 
@@ -84,10 +84,10 @@ function LandingFeatures() {
                 <Icon name="share" size={24} color={colors.info} />
               </div>
               <h3 style={{ fontSize: 24, fontWeight: 800, color: colors.primaryDark, margin: '0 0 12px' }}>
-                Comparte con quien quieras y mantén el control
+                Comparte con enlaces temporales e invitaciones por correo
               </h3>
               <p style={{ fontSize: 15, color: colors.muted, lineHeight: 1.6, margin: '0 0 24px', maxWidth: 480 }}>
-                Genera enlaces de descarga públicos o privados. Añade contraseñas personalizadas y fechas límite para que nadie acceda sin tu consentimiento.
+                Genera enlaces compartidos con token único y vigencia automática según tu plan, o envía invitaciones directas al correo electrónico del destinatario.
               </p>
             </div>
 
@@ -102,7 +102,7 @@ function LandingFeatures() {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: colors.primaryDark }}>Opciones de enlace público</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: colors.primaryDark }}>Enlace de invitación compartido</span>
                 <span style={{ fontSize: 11, background: colors.successSoft, color: colors.successDark, padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
                   Activo
                 </span>
@@ -120,7 +120,7 @@ function LandingFeatures() {
                     fontFamily: 'monospace',
                   }}
                 >
-                  https://vincloud.app/s/f8a3d92
+                  https://vincloud.app/?mode=shared-file&token=f8a3d92
                 </div>
                 <div
                   style={{
@@ -138,7 +138,7 @@ function LandingFeatures() {
             </div>
           </div>
 
-          {/* Tarjeta 2: Velocidad e inmediatez (5 columnas) - Contraste Oscuro + Ámbar/Esmeralda */}
+          {/* Tarjeta 2: Subidas con Multer por Plan (5 columnas) - Contraste Oscuro + Ámbar/Esmeralda */}
           <div
             style={{
               gridColumn: 'span 5',
@@ -171,10 +171,10 @@ function LandingFeatures() {
                 <Icon name="zap" size={24} color={colors.warningLight} />
               </div>
               <h3 style={{ fontSize: 24, fontWeight: 800, color: colors.surface, margin: '0 0 12px' }}>
-                Subidas y descargas a máxima velocidad
+                Subidas y descargas gestionadas por plan
               </h3>
               <p style={{ fontSize: 14, color: 'rgba(255, 255, 255, 0.75)', lineHeight: 1.6, margin: 0 }}>
-                Streaming optimizado directo a disco con Multer y almacenamiento distribuido. Sin tiempos muertos ni límites artificiales de velocidad.
+                Carga de archivos validada dinámicamente con Multer según tu suscripción: desde 10 MB por archivo en el plan Gratuito y hasta 50 MB por archivo en producción.
               </p>
             </div>
 
@@ -188,7 +188,7 @@ function LandingFeatures() {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
-                <span>Subiendo archivo (45.2 MB)</span>
+                <span>Subiendo archivo (18.4 MB)</span>
                 <span style={{ fontWeight: 700, color: colors.success }}>100% Completado</span>
               </div>
               <div style={{ height: 6, background: 'rgba(255,255,255,0.2)', borderRadius: 3, overflow: 'hidden' }}>
@@ -228,19 +228,19 @@ function LandingFeatures() {
                 <Icon name="shield" size={24} color={colors.successDark} />
               </div>
               <h3 style={{ fontSize: 22, fontWeight: 800, color: colors.primaryDark, margin: '0 0 12px' }}>
-                Cifrado AES de 256 bits
+                Autenticación JWT y contraseñas con Bcrypt
               </h3>
               <p style={{ fontSize: 14, color: colors.muted, lineHeight: 1.6, margin: 0 }}>
-                Tus archivos se protegen en reposo y en tránsito. Cada bloque de datos cuenta con validación criptográfica y autenticación JWT.
+                Tu cuenta está protegida con tokens de sesión JWT, hash criptográfico Bcrypt para contraseñas, verificación por correo electrónico y control de intentos (Rate Limiting).
               </p>
             </div>
 
             <div style={{ marginTop: 24, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, background: colors.successSoft, color: colors.successDark, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(5, 150, 105, 0.2)', fontWeight: 700 }}>
-                Tokens de sesión seguros
+                Tokens de sesión JWT
               </span>
               <span style={{ fontSize: 11, background: colors.successSoft, color: colors.successDark, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(5, 150, 105, 0.2)', fontWeight: 700 }}>
-                Respaldos automáticos
+                Verificación por correo
               </span>
             </div>
           </div>
@@ -275,10 +275,10 @@ function LandingFeatures() {
                 <Icon name="trash" size={24} color={colors.warningDark} />
               </div>
               <h3 style={{ fontSize: 24, fontWeight: 800, color: colors.primaryDark, margin: '0 0 12px' }}>
-                Papelera protegida con retención de 30 días
+                Papelera integrada con restauración inmediata
               </h3>
               <p style={{ fontSize: 15, color: colors.muted, lineHeight: 1.6, margin: 0, maxWidth: 520 }}>
-                ¿Borraste un archivo por error? No te preocupes. La papelera integrada retiene tus elementos eliminados para que puedas restaurarlos a su ubicación original con un solo clic.
+                ¿Borraste un archivo por error? La papelera conserva tus elementos eliminados para que puedas restaurarlos a su carpeta original o eliminarlos permanentemente cuando decidas liberar espacio.
               </p>
             </div>
 
@@ -296,7 +296,7 @@ function LandingFeatures() {
             >
               <Icon name="clock" size={16} color={colors.warningDark} />
               <span style={{ fontSize: 13, color: colors.primaryDark, fontWeight: 600 }}>
-                Restauración instantánea sin pérdida de metadatos ni historial.
+                Restauración en un solo clic de vuelta a tu directorio de archivos.
               </span>
             </div>
           </div>

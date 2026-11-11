@@ -81,8 +81,8 @@ export async function deleteFile(req, res) {
  * Lista los archivos en la papelera del usuario.
  */
 export async function getTrashFiles(req, res) {
-  const archivos = await storageService.getTrashFiles(req.user.id);
-  res.status(200).json({ archivos });
+  const { archivos, carpetas } = await storageService.getTrash(req.user.id);
+  res.status(200).json({ archivos, carpetas });
 }
 
 /**
@@ -233,7 +233,33 @@ export async function deleteFolder(req, res) {
   const resultado = await storageService.deleteFolder(carpetaId, req.user.id);
 
   res.status(200).json({
-    message: 'Carpeta y sus contenidos eliminados exitosamente.',
+    message: 'Carpeta movida a la papelera. Puedes restaurarla con todo su contenido.',
+    ...resultado,
+  });
+}
+
+/**
+ * Restaura una carpeta de la papelera con todo su contenido.
+ */
+export async function restoreFolder(req, res) {
+  const carpetaId = validateId(req.params.id, 'carpeta');
+  const carpeta = await storageService.restoreFolder(carpetaId, req.user.id);
+
+  res.status(200).json({
+    message: 'Carpeta restaurada exitosamente.',
+    carpeta,
+  });
+}
+
+/**
+ * Elimina definitivamente una carpeta de la papelera con todo su contenido y libera su espacio.
+ */
+export async function permanentDeleteFolder(req, res) {
+  const carpetaId = validateId(req.params.id, 'carpeta');
+  const resultado = await storageService.permanentDeleteFolder(carpetaId, req.user.id);
+
+  res.status(200).json({
+    message: 'Carpeta eliminada permanentemente.',
     ...resultado,
   });
 }

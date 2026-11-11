@@ -3,6 +3,7 @@ import { colors, sectionLabelStyle } from '../../styles/theme';
 import Icon from '../../components/ui/Icon';
 import Button from '../../components/ui/Button';
 import Alert from '../../components/ui/Alert';
+import { getToken } from '../../services/authService';
 import {
   subscribeOrChangePlan,
   renewActiveSubscription,
@@ -107,26 +108,67 @@ function PaymentGatewayScreen({
     const last4 = cleanDigits.slice(-4);
     const isRejected = simulateReject || last4 === '0000';
 
-    try {
-      let resultado;
-      if (isRenewal) {
-        resultado = await renewActiveSubscription({
-          numeroTarjeta: cleanDigits,
-          tarjetaUltimos4: last4,
-          simularRechazo: isRejected,
-        });
-      } else {
-        resultado = await subscribeOrChangePlan({
+    // Si hay sesión autenticada con el backend, persiste la suscripción y el pago en la BD
+    if (getToken()) {
+      try {
+        const payload = {
           planId: plan.id,
           numeroTarjeta: cleanDigits,
           tarjetaUltimos4: last4,
           simularRechazo: isRejected,
-        });
-      }
+        };
+        const response = isRenewal
+          ? await renewActiveSubscription(payload)
+          : await subscribeOrChangePlan(payload);
 
-      const paymentRecord = {
-        id: resultado.pago?.id || `pay-${Date.now()}`,
-        referencia: resultado.pago?.referencia || generateReference(isRenewal ? 'REN' : 'SUB'),
+        const nextReceipt = {
+          referencia: response.pago?.referencia || generateReference(isRenewal ? 'REN' : 'SUB'),
+          monto: Number(response.pago?.monto ?? price),
+          tarjetaUltimos4: response.pago?.tarjeta_ultimos4 || last4,
+          fecha: response.pago?.fecha || new Date().toISOString(),
+          planNombre: plan.name || plan.nombre,
+          claseDecorador: decoratorClass,
+          almacenamiento: storageLabel,
+          mensaje:
+            response.message ||
+            `Se activó el Plan ${plan.name || plan.nombre} (${storageLabel}) exitosamente en tu cuenta.`,
+        };
+
+        setReceipt(nextReceipt);
+        setSubmitting(false);
+
+        if (onPaymentSuccess) {
+          await onPaymentSuccess({
+            plan,
+            mode,
+            pago: response.pago,
+            backendSynced: true,
+          });
+        }
+        return;
+      } catch (err) {
+        if (onPaymentRejected) {
+          onPaymentRejected();
+        }
+        setErrorMessage(
+          err.message ||
+            `El pago fue rechazado por el banco emisor (tarjeta terminada en •••• ${last4}).`
+        );
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    // Modo simulación cuando se prueba sin sesión de backend
+    await new Promise((resolve) => setTimeout(resolve, 550));
+
+    const referencia = generateReference(isRenewal ? 'REN' : 'SUB');
+    const nowIso = new Date().toISOString();
+
+    if (isRejected) {
+      const rejectedRecord = {
+        id: `pay-${Date.now()}`,
+        referencia,
         planId: plan.id,
         planNombre: resultado.suscripcionActiva?.planNombre || plan.name || plan.nombre,
         tipo: isRenewal ? 'renovacion' : 'contratacion',
@@ -156,46 +198,13 @@ function PaymentGatewayScreen({
       setReceipt(nextReceipt);
       setSubmitting(false);
 
-      if (onPaymentSuccess) {
-        onPaymentSuccess({
-          plan,
-          mode,
-          pago: paymentRecord,
-          resultado,
-        });
-      }
-    } catch (err) {
-      setSubmitting(false);
-
-      // Si la pasarela de pagos rechazó la transacción (código 402 del backend)
-      if (err.status === 402 || err.data?.aprobado === false) {
-        const p = err.data?.pago;
-        const rejectedRecord = {
-          id: p?.id || `pay-${Date.now()}`,
-          referencia: p?.referencia || generateReference(isRenewal ? 'REN' : 'SUB'),
-          planId: plan.id,
-          planNombre: plan.name || plan.nombre,
-          tipo: isRenewal ? 'renovacion' : 'contratacion',
-          monto: Number(p?.monto ?? price),
-          tarjetaUltimos4: p?.tarjeta_ultimos4 || last4,
-          estado: 'rechazado',
-          fecha: p?.fecha || new Date().toISOString(),
-        };
-
-        if (onPaymentRejected) {
-          onPaymentRejected(rejectedRecord);
-        }
-
-        setErrorMessage(
-          err.message ||
-            `El pago fue rechazado por la pasarela simulada (tarjeta terminada en •••• ${last4}). La transacción ha quedado registrada en el historial de pagos.`
-        );
-        return;
-      }
-
-      setErrorMessage(
-        err.message || 'Ocurrió un error inesperado al procesar el pago. Por favor intenta de nuevo.'
-      );
+    if (onPaymentSuccess) {
+      onPaymentSuccess({
+        plan,
+        mode,
+        pago: paymentRecord,
+        backendSynced: false,
+      });
     }
   }
 

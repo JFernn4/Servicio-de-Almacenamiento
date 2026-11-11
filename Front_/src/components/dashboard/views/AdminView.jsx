@@ -9,6 +9,7 @@ import AdminReportSection from '../admin/AdminReportSection';
 import AdminPlansSection from '../admin/AdminPlansSection';
 import AdminUsersSection from '../admin/AdminUsersSection';
 import AdminPromptModal from '../admin/AdminPromptModal';
+import AdminEditPlanModal from '../admin/AdminEditPlanModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const TOKEN_KEY = 'vincloud_token';
@@ -43,8 +44,10 @@ function AdminView({ user, onLogout }) {
     vigenciaDias: 30,
   });
 
-  // Modal para editar Precio o Cuota
+  // Modal para editar Cuota de usuario
   const [promptModal, setPromptModal] = useState(null); // { title, label, value, onConfirm }
+  // Modal completo para editar cualquier campo de un plan
+  const [editingPlan, setEditingPlan] = useState(null);
 
   function showFeedback(type, message) {
     setFeedback({ type, message });
@@ -101,6 +104,29 @@ function AdminView({ user, onLogout }) {
 
   useEffect(() => {
     loadAllAdminData(true);
+  }, [loadAllAdminData, activeSection]);
+
+  // Refrescar automáticamente cuando la ventana recupera el foco o cada 15 s (para ver suscripciones/ingresos en vivo)
+  useEffect(() => {
+    function handleRefreshOnFocus() {
+      if (document.visibilityState === 'visible') {
+        loadAllAdminData(true);
+      }
+    }
+    window.addEventListener('focus', handleRefreshOnFocus);
+    document.addEventListener('visibilitychange', handleRefreshOnFocus);
+
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadAllAdminData(true);
+      }
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('focus', handleRefreshOnFocus);
+      document.removeEventListener('visibilitychange', handleRefreshOnFocus);
+      clearInterval(intervalId);
+    };
   }, [loadAllAdminData]);
 
   // Crear nuevo plan
@@ -140,44 +166,38 @@ function AdminView({ user, onLogout }) {
       const data = await res.json();
       if (!res.ok) return showFeedback('error', data.error || 'No se pudo actualizar el plan');
       showFeedback('success', data.message || 'Estado del plan actualizado.');
-      await loadPlans();
+      await Promise.all([loadPlans(), loadReport()]);
     } catch (err) {
       showFeedback('error', err.message);
     }
   }
 
-  // Editar precio del plan en Quetzales (Q)
-  function openEditPlanPrice(id, currentPrice) {
-    setPromptModal({
-      title: 'Editar Precio del Plan',
-      label: 'Ingresa el nuevo precio en Quetzales (Q):',
-      value: currentPrice,
-      onConfirm: async (val) => {
-        const num = parseFloat(val);
-        if (isNaN(num) || num < 0) return showFeedback('error', 'El precio ingresado no es válido');
-        try {
-          const res = await fetch(`${API_BASE}/admin/plans/${id}`, {
-            method: 'PATCH',
-            headers: authHeaders(),
-            body: JSON.stringify({ precio: num }),
-          });
-          const data = await res.json();
-          if (!res.ok) return showFeedback('error', data.error || 'Error al actualizar el precio');
-          showFeedback('success', data.message || 'Precio del plan actualizado.');
-          await loadPlans();
-        } catch (err) {
-          showFeedback('error', err.message);
-        }
-      },
+  // Guardar edición completa de un plan existente
+  async function handleSaveEditedPlan(planId, updates) {
+    const res = await fetch(`${API_BASE}/admin/plans/${planId}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify(updates),
     });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Error al actualizar el plan');
+    }
+    showFeedback('success', data.message || 'Plan actualizado correctamente.');
+    await loadAllAdminData(true);
   }
 
   // Editar cuota personalizada de usuario
   function openChangeUserQuota(id) {
+    const targetUser = users.find((u) => u.id === id);
+    const currentGb = targetUser
+      ? Math.max(1, Math.round((Number(targetUser.espacioDisponible) || 0) / 1024 ** 3))
+      : 5;
+
     setPromptModal({
       title: 'Modificar Cuota de Almacenamiento',
       label: 'Ingresa la nueva cuota en Gigabytes (GB):',
-      value: 5,
+      value: currentGb,
       onConfirm: async (val) => {
         const numGb = parseFloat(val);
         if (isNaN(numGb) || numGb <= 0) return showFeedback('error', 'La cuota en GB no es válida');
@@ -190,7 +210,7 @@ function AdminView({ user, onLogout }) {
           const data = await res.json();
           if (!res.ok) return showFeedback('error', data.error || 'Error al actualizar la cuota');
           showFeedback('success', data.message || 'Cuota de almacenamiento actualizada.');
-          await loadUsers();
+          await Promise.all([loadUsers(), loadReport()]);
         } catch (err) {
           showFeedback('error', err.message);
         }
@@ -447,7 +467,7 @@ function AdminView({ user, onLogout }) {
               setPlanForm={setPlanForm}
               handleCreatePlan={handleCreatePlan}
               handleTogglePlan={handleTogglePlan}
-              openEditPlanPrice={openEditPlanPrice}
+              openEditPlan={setEditingPlan}
             />
           )}
 
@@ -463,8 +483,15 @@ function AdminView({ user, onLogout }) {
         </div>
       </main>
 
-      {/* Subcomponente 4: Modal para editar Precio o Cuota */}
+      {/* Subcomponente 4: Modal para editar Cuota */}
       <AdminPromptModal promptModal={promptModal} setPromptModal={setPromptModal} />
+
+      {/* Subcomponente 5: Modal completo para editar un plan existente */}
+      <AdminEditPlanModal
+        plan={editingPlan}
+        onClose={() => setEditingPlan(null)}
+        onSave={handleSaveEditedPlan}
+      />
     </div>
   );
 }

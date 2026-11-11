@@ -73,7 +73,7 @@ export async function uploadFile({ usuarioId, carpetaId = null, file, files = []
 
   // 2. Validar que la carpeta de destino exista y pertenezca al usuario (si no es la raíz)
   if (carpetaId) {
-    const carpeta = await folderRepository.findFolderByIdAndUser(carpetaId, usuarioId);
+    const carpeta = await folderRepository.findActiveFolderByIdAndUser(carpetaId, usuarioId);
     if (!carpeta) {
       await cleanupTempFiles();
       throw new HttpError(404, 'La carpeta especificada no existe o no tienes permisos para acceder a ella.');
@@ -238,7 +238,8 @@ export async function getTrashFiles(usuarioId) {
 }
 
 /**
- * Restaura un archivo de la papelera a su ubicación original.
+ * Restaura un archivo de la papelera a su ubicación original. Si su carpeta
+ * sigue en la papelera, el archivo vuelve a la raíz para que sea visible.
  */
 export async function restoreFile(archivoId, usuarioId) {
   const archivo = await fileRepository.findFileByIdAndUser(archivoId, usuarioId);
@@ -246,25 +247,41 @@ export async function restoreFile(archivoId, usuarioId) {
     throw new HttpError(404, 'Archivo no encontrado.');
   }
 
-  return fileRepository.restoreFileFromTrash(archivoId, usuarioId);
+  const carpetaOculta = Boolean(archivo.carpeta_id)
+    && !(await folderRepository.findActiveFolderByIdAndUser(archivo.carpeta_id, usuarioId));
+
+  return fileRepository.restoreFileFromTrash(archivoId, usuarioId, { moveToRoot: carpetaOculta });
 }
 
 /**
- * Vacía toda la papelera del usuario eliminando los archivos físicos y liberando la cuota total.
+ * Vacía toda la papelera del usuario (archivos y carpetas con todo su contenido),
+ * eliminando el contenido del almacenamiento y liberando la cuota.
  */
 export async function emptyTrash(usuarioId) {
-  const eliminados = await fileRepository.deleteAllTrashFilesByUser(usuarioId);
-  const totalBytesLiberados = eliminados.reduce((acc, f) => acc + Number(f.tamano || 0), 0);
+  // 1. Carpetas en la papelera, con todo su árbol
+  const carpetas = await folderRepository.findTrashFoldersByUser(usuarioId);
+  let bytesCarpetas = 0;
+  let archivosCarpetas = 0;
+  for (const carpeta of carpetas) {
+    const resultado = await permanentDeleteFolder(carpeta.id, usuarioId);
+    bytesCarpetas += resultado.bytesLiberados;
+    archivosCarpetas += resultado.archivosEliminados;
+  }
 
-  if (totalBytesLiberados > 0) {
-    await userRepository.decrementConsumedSpace(usuarioId, totalBytesLiberados);
+  // 2. Archivos enviados a la papelera de forma individual
+  const eliminados = await fileRepository.deleteAllTrashFilesByUser(usuarioId);
+  const bytesArchivos = eliminados.reduce((acc, f) => acc + Number(f.tamano || 0), 0);
+
+  if (bytesArchivos > 0) {
+    await userRepository.decrementConsumedSpace(usuarioId, bytesArchivos);
   }
 
   await fileStorage.removeMany(eliminados);
 
   return {
-    eliminadosCount: eliminados.length,
-    bytesLiberados: totalBytesLiberados,
+    eliminadosCount: eliminados.length + archivosCarpetas,
+    carpetasEliminadas: carpetas.length,
+    bytesLiberados: bytesArchivos + bytesCarpetas,
   };
 }
 
@@ -359,7 +376,7 @@ export async function getDirectoryContents(usuarioId, carpetaId = null) {
   let carpetaActual = null;
 
   if (carpetaId) {
-    carpetaActual = await folderRepository.findFolderByIdAndUser(carpetaId, usuarioId);
+    carpetaActual = await folderRepository.findActiveFolderByIdAndUser(carpetaId, usuarioId);
     if (!carpetaActual) {
       throw new HttpError(404, 'Carpeta no encontrada.');
     }
@@ -403,7 +420,7 @@ export async function createFolder({ usuarioId, carpetaPadreId = null, nombre })
   }
 
   if (carpetaPadreId) {
-    const padre = await folderRepository.findFolderByIdAndUser(carpetaPadreId, usuarioId);
+    const padre = await folderRepository.findActiveFolderByIdAndUser(carpetaPadreId, usuarioId);
     if (!padre) {
       throw new HttpError(404, 'La carpeta superior especificada no existe.');
     }
@@ -424,7 +441,7 @@ export async function renameFolder(carpetaId, usuarioId, nuevoNombre) {
     throw new HttpError(400, 'El nuevo nombre no puede estar vacío.');
   }
 
-  const carpeta = await folderRepository.findFolderByIdAndUser(carpetaId, usuarioId);
+  const carpeta = await folderRepository.findActiveFolderByIdAndUser(carpetaId, usuarioId);
   if (!carpeta) {
     throw new HttpError(404, 'Carpeta no encontrada.');
   }
@@ -433,12 +450,43 @@ export async function renameFolder(carpetaId, usuarioId, nuevoNombre) {
 }
 
 /**
- * Elimina una carpeta, sus subcarpetas y sus archivos en disco, liberando la cuota consumida.
+ * Envía una carpeta a la papelera. Sus subcarpetas y archivos no se tocan: quedan
+ * ocultos y vuelven intactos al restaurarla. No libera cuota (igual que los archivos).
  */
 export async function deleteFolder(carpetaId, usuarioId) {
-  const carpeta = await folderRepository.findFolderByIdAndUser(carpetaId, usuarioId);
+  const carpeta = await folderRepository.findActiveFolderByIdAndUser(carpetaId, usuarioId);
   if (!carpeta) {
     throw new HttpError(404, 'Carpeta no encontrada.');
+  }
+
+  const enPapelera = await folderRepository.moveFolderToTrash(carpetaId, usuarioId);
+  return { id: enPapelera.id, nombre: enPapelera.nombre, enPapelera: true };
+}
+
+/**
+ * Restaura una carpeta de la papelera con todo su contenido. Si su carpeta
+ * superior ya no está disponible, vuelve a la raíz.
+ */
+export async function restoreFolder(carpetaId, usuarioId) {
+  const carpeta = await folderRepository.findFolderByIdAndUser(carpetaId, usuarioId);
+  if (!carpeta || !carpeta.en_papelera) {
+    throw new HttpError(404, 'La carpeta no se encuentra en la papelera.');
+  }
+
+  const padreOculto = Boolean(carpeta.carpeta_padre_id)
+    && !(await folderRepository.findActiveFolderByIdAndUser(carpeta.carpeta_padre_id, usuarioId));
+
+  return folderRepository.restoreFolderFromTrash(carpetaId, usuarioId, { moveToRoot: padreOculto });
+}
+
+/**
+ * Elimina definitivamente una carpeta de la papelera, sus subcarpetas y sus archivos
+ * (también del almacenamiento), liberando la cuota consumida.
+ */
+export async function permanentDeleteFolder(carpetaId, usuarioId) {
+  const carpeta = await folderRepository.findFolderByIdAndUser(carpetaId, usuarioId);
+  if (!carpeta || !carpeta.en_papelera) {
+    throw new HttpError(404, 'La carpeta no se encuentra en la papelera.');
   }
 
   // 1. Obtener todos los archivos dentro del árbol jerárquico para borrar del disco y sumar espacio
@@ -457,7 +505,12 @@ export async function deleteFolder(carpetaId, usuarioId) {
   // 4. Eliminar del almacenamiento cada archivo que estaba en el árbol
   await fileStorage.removeMany(archivosEnArbol);
 
-  return { id: carpeta.id, nombre: carpeta.nombre, bytesLiberados: totalBytesLiberados };
+  return {
+    id: carpeta.id,
+    nombre: carpeta.nombre,
+    archivosEliminados: archivosEnArbol.length,
+    bytesLiberados: totalBytesLiberados,
+  };
 }
 
 /**
@@ -466,7 +519,7 @@ export async function deleteFolder(carpetaId, usuarioId) {
  */
 export async function createShareInvitation(archivoId, usuarioId, { correoDestinatario } = {}) {
   const archivo = await fileRepository.findFileByIdAndUser(archivoId, usuarioId);
-  if (!archivo || archivo.en_papelera) {
+  if (!archivo || (await isInTrash(archivo))) {
     throw new HttpError(404, 'Archivo no encontrado o no disponible para compartir.');
   }
 
@@ -535,7 +588,7 @@ export async function getSharedFileInfo(token) {
   }
 
   const archivo = await fileRepository.findFileById(payload.id);
-  if (!archivo || archivo.en_papelera) {
+  if (!archivo || (await isInTrash(archivo))) {
     throw new HttpError(404, 'El archivo compartido ya no se encuentra disponible.');
   }
 
@@ -562,7 +615,7 @@ export async function getSharedFileForDownload(token) {
   }
 
   const archivo = await fileRepository.findFileById(payload.id);
-  if (!archivo || archivo.en_papelera) {
+  if (!archivo || (await isInTrash(archivo))) {
     throw new HttpError(404, 'El archivo compartido ya no se encuentra disponible.');
   }
 

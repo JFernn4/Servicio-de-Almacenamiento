@@ -68,7 +68,7 @@ const DEFAULT_PLANS = [
     popular: true,
     features: [
       '200 GB de almacenamiento total',
-      'Tamaño máximo por archivo: 250 MB',
+      'Tamaño máximo por archivo: 50 MB',
       'Subida múltiple de hasta 10 archivos simultáneos',
       'Enlaces compartidos con vigencia extendida de 30 días',
     ],
@@ -87,7 +87,7 @@ const DEFAULT_PLANS = [
     popular: false,
     features: [
       '1 TB (1,024 GB) de almacenamiento total',
-      'Tamaño máximo por archivo: 1 GB',
+      'Tamaño máximo por archivo: 50 MB',
       'Subida masiva de hasta 25 archivos simultáneos',
       'Enlaces compartidos corporativos con vigencia de 365 días',
     ],
@@ -106,6 +106,88 @@ function readStoredJson(key, fallback) {
   }
 }
 
+function formatStorageFromBytes(bytes, fallbackGb = 5) {
+  const totalBytes = Number(bytes) || fallbackGb * GB_BYTES;
+  const gb = totalBytes / GB_BYTES;
+  if (gb >= 1024) {
+    const tb = gb / 1024;
+    return `${Number(tb.toFixed(tb % 1 === 0 ? 0 : 1))} TB`;
+  }
+  return `${Number(gb.toFixed(gb % 1 === 0 ? 0 : 1))} GB`;
+}
+
+function buildPlanFeatures(storageLabel, decorator) {
+  const multer = decorator?.politicaMulter;
+  if (!multer) {
+    return [`${storageLabel} de almacenamiento total en la nube`];
+  }
+  const effectiveMaxMb = Math.min(Number(multer.maxFileSizeMb) || 10, 50);
+  const filesText =
+    multer.maxFiles > 1
+      ? `Subida múltiple de hasta ${multer.maxFiles} archivos simultáneos`
+      : 'Subida de 1 archivo a la vez';
+  return [
+    `${storageLabel} de almacenamiento total`,
+    `Tamaño máximo por archivo: ${effectiveMaxMb} MB`,
+    filesText,
+    `Enlaces compartidos con vigencia de ${multer.shareExpiresIn || '24h'}`,
+  ];
+}
+
+function mapCatalogToDashboardPlans(catalog) {
+  if (!catalog || !Array.isArray(catalog.planes)) {
+    return DEFAULT_PLANS;
+  }
+
+  const base = catalog.planBase;
+  const baseBytes = Number(base?.capacidadCatalogo ?? base?.decorator?.almacenamiento ?? 5 * GB_BYTES);
+  const baseStorage = formatStorageFromBytes(baseBytes, 5);
+
+  const freeCard = {
+    id: null,
+    key: 'free',
+    name: base?.nombre || 'Gratuito',
+    decoratorClass: base?.decorator?.clase || 'PlanGratuito',
+    subtitle: base?.descripcionOriginal || 'Componente base del sistema',
+    price: 0,
+    storage: baseStorage,
+    storageBytes: baseBytes,
+    storageDesc: 'Espacio gratuito base (PlanGratuito)',
+    vigenciaDias: null,
+    popular: false,
+    features: buildPlanFeatures(baseStorage, base?.decorator),
+  };
+
+  const dbCards = catalog.planes.map((plan, index) => {
+    const dec = plan.decorator || {};
+    const storageBytes = Number(plan.capacidadCatalogo ?? dec.almacenamiento ?? 50 * GB_BYTES);
+    const storageLabel = formatStorageFromBytes(storageBytes, dec.almacenamientoGb || 50);
+    const normalizedName = String(plan.nombre || '').toLowerCase();
+    const isPopular =
+      normalizedName.includes('pro') ||
+      (catalog.planes.length > 1 &&
+        index === 1 &&
+        !catalog.planes.some((p) => String(p.nombre || '').toLowerCase().includes('pro')));
+
+    return {
+      id: plan.id,
+      key: `plan-${plan.id}`,
+      name: plan.nombre,
+      decoratorClass: dec.clase || 'DecoradorPlanes',
+      subtitle: plan.descripcionOriginal || dec.descripcion || 'Plan de almacenamiento en la nube',
+      price: Number(plan.precioCatalogo ?? dec.costo ?? 0),
+      storage: storageLabel,
+      storageBytes,
+      storageDesc: `PlanGratuito + ${dec.clase || plan.nombre}`,
+      vigenciaDias: Number(plan.vigenciaDias || 30),
+      popular: isPopular,
+      features: buildPlanFeatures(storageLabel, dec),
+    };
+  });
+
+  return [freeCard, ...dbCards];
+}
+
 function SuscripcionesView({ onRefreshUser }) {
   const [plans, setPlans] = useState(DEFAULT_PLANS);
   const [activeSub, setActiveSub] = useState(() => readStoredJson(SUB_STORAGE_KEY, null));
@@ -116,6 +198,58 @@ function SuscripcionesView({ onRefreshUser }) {
   const [loading, setLoading] = useState(true);
 
   const { askConfirm, confirmDialogProps } = useConfirm();
+
+  const loadSubscriptionData = useCallback(async () => {
+    try {
+      const catalog = await fetchPlansCatalog();
+      if (catalog) {
+        setPlans(mapCatalogToDashboardPlans(catalog));
+      }
+    } catch {
+      // Si el servidor no responde, conserva los planes de respaldo
+    }
+
+    if (!getToken()) return;
+
+    try {
+      const [meData, paymentList] = await Promise.all([
+        fetchMySubscription(),
+        fetchPaymentHistory(),
+      ]);
+      if (meData) {
+        const sub = meData.suscripcionActiva
+          ? {
+              planId: meData.suscripcionActiva.planId,
+              planNombre: meData.suscripcionActiva.planNombre,
+              decoratorClass: meData.planDecorado?.clase || 'DecoradorPlanes',
+              vigenciaDias: meData.suscripcionActiva.vigenciaDias,
+              diasRestantes: meData.suscripcionActiva.diasRestantes,
+              fechaRenovacion: meData.suscripcionActiva.fechaRenovacion,
+              storageBytes: meData.suscripcionActiva.capacidadAlmacenamiento,
+            }
+          : null;
+        setActiveSub(sub);
+        try {
+          if (sub) {
+            localStorage.setItem(SUB_STORAGE_KEY, JSON.stringify(sub));
+          } else {
+            localStorage.removeItem(SUB_STORAGE_KEY);
+          }
+        } catch {
+          // ignore storage errors
+        }
+      }
+      if (Array.isArray(paymentList)) {
+        setPayments(paymentList);
+      }
+    } catch {
+      // Mantiene el estado local simulado si no hay sesión en backend
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSubscriptionData();
+  }, [loadSubscriptionData]);
 
   function saveSubscription(nextSub) {
     setActiveSub(nextSub);
@@ -142,155 +276,25 @@ function SuscripcionesView({ onRefreshUser }) {
     });
   }
 
-  async function loadSubscriptionsData() {
-    try {
-      // 1. Cargar catálogo de planes del backend
-      try {
-        const catalogData = await fetchPlansCatalog();
-        if (catalogData?.planes && Array.isArray(catalogData.planes)) {
-          const mappedPlans = [
-            // Plan Base Gratuito
-            {
-              id: null,
-              key: 'free',
-              name: 'Gratuito',
-              decoratorClass: 'PlanGratuito',
-              subtitle:
-                catalogData.planBase?.descripcionOriginal || 'Componente base del sistema',
-              price: 0,
-              storage: '5 GB',
-              storageBytes: 5 * GB_BYTES,
-              storageDesc: 'Espacio gratuito base',
-              vigenciaDias: null,
-              popular: false,
-              features:
-                catalogData.planBase?.decorator?.politicaMulter?.features ||
-                DEFAULT_PLANS[0].features,
-            },
-            // Planes del catálogo
-            ...catalogData.planes.map((p) => {
-              const gb =
-                p.decorator?.almacenamientoGb ||
-                Math.round(Number(p.capacidadCatalogo) / GB_BYTES);
-              const storage = gb >= 1024 ? `${(gb / 1024).toFixed(0)} TB` : `${gb} GB`;
-              const isPop = p.nombre.toLowerCase().includes('profesional');
-              return {
-                id: p.id,
-                key: `plan-${p.id}`,
-                name: p.nombre,
-                decoratorClass:
-                  p.decorator?.clase || (p.nombre.includes('Básico') ? 'PlanBasico' : p.nombre),
-                subtitle: p.descripcionOriginal || '',
-                price: Number(p.precioCatalogo),
-                storage,
-                storageBytes: Number(p.capacidadCatalogo),
-                storageDesc: `5 GB base + ${Math.max(0, gb - 5)} GB decorador ${p.nombre}`,
-                vigenciaDias: Number(p.vigenciaDias) || 30,
-                popular: isPop,
-                features:
-                  p.decorator?.politicaMulter?.features ||
-                  DEFAULT_PLANS.find((dp) => dp.id === p.id)?.features ||
-                  [],
-                decorator: p.decorator,
-              };
-            }),
-          ];
-          setPlans(mappedPlans);
-        }
-      } catch (err) {
-        console.warn('No se pudo obtener el catálogo de planes desde el backend:', err);
-      }
-
-      // 2. Cargar suscripción activa del usuario desde el backend (GET /api/subscriptions/active)
-      try {
-        const subData = await fetchActiveSubscription();
-        if (subData?.suscripcionActiva) {
-          const sub = subData.suscripcionActiva;
-          const dec = subData.planDecorado;
-          const loadedSub = {
-            planId: sub.planId,
-            planNombre: sub.planNombre,
-            decoratorClass: dec?.clase || sub.planNombre,
-            vigenciaDias: Number(sub.vigenciaDias),
-            diasRestantes: Number(sub.diasRestantes),
-            fechaRenovacion: sub.fechaRenovacion,
-            storageBytes: Number(sub.capacidadAlmacenamiento),
-          };
-          saveSubscription(loadedSub);
-        } else {
-          saveSubscription(null);
-        }
-      } catch (err) {
-        console.warn('No se pudo obtener la suscripción activa desde el backend:', err);
-      }
-
-      // 3. Cargar historial de pagos desde el backend (GET /api/subscriptions/payments)
-      try {
-        const paymentsList = await fetchPaymentHistory();
-        if (Array.isArray(paymentsList)) {
-          setPayments(paymentsList);
-          try {
-            localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(paymentsList));
-          } catch {
-            // ignore
-          }
-        }
-      } catch (err) {
-        console.warn('No se pudo obtener el historial de pagos desde el backend:', err);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadSubscriptionsData();
-  }, []);
-
-  async function handlePaymentSuccess({ plan, mode, pago, resultado }) {
+  function handleSimulatedPaymentSuccess({ plan, mode, pago }) {
     const isRenew = mode === 'renew';
+    const addedDays = plan.vigenciaDias || 30;
+    const currentRemaining = isRenew && activeSub ? Number(activeSub.diasRestantes || 0) : 0;
+    const totalDays = currentRemaining + addedDays;
+    const renewalDate = new Date(Date.now() + totalDays * 24 * 60 * 60 * 1000).toISOString();
 
-    // Si el backend retornó el estado actualizado de la suscripción
-    if (resultado?.suscripcionActiva) {
-      const sub = resultado.suscripcionActiva;
-      const dec = resultado.planDecorado;
-      const nextSub = {
-        planId: sub.planId,
-        planNombre: sub.planNombre,
-        decoratorClass: dec?.clase || sub.planNombre,
-        vigenciaDias: Number(sub.vigenciaDias),
-        diasRestantes: Number(sub.diasRestantes),
-        fechaRenovacion: sub.fechaRenovacion,
-        storageBytes: Number(sub.capacidadAlmacenamiento),
-      };
-      saveSubscription(nextSub);
-    } else {
-      const addedDays = plan.vigenciaDias || 30;
-      const currentRemaining = isRenew && activeSub ? Number(activeSub.diasRestantes || 0) : 0;
-      const totalDays = currentRemaining + addedDays;
-      const renewalDate = new Date(Date.now() + totalDays * 24 * 60 * 60 * 1000).toISOString();
+    const nextSub = {
+      planId: plan.id,
+      planNombre: plan.name,
+      decoratorClass: plan.decoratorClass,
+      vigenciaDias: addedDays,
+      diasRestantes: totalDays,
+      fechaRenovacion: renewalDate,
+      storageBytes: plan.storageBytes,
+    };
 
-      const nextSub = {
-        planId: plan.id,
-        planNombre: plan.name,
-        decoratorClass: plan.decoratorClass,
-        vigenciaDias: addedDays,
-        diasRestantes: totalDays,
-        fechaRenovacion: renewalDate,
-        storageBytes: plan.storageBytes,
-      };
-      saveSubscription(nextSub);
-    }
-
-    // Refrescar historial de pagos desde el backend
-    try {
-      const latestPayments = await fetchPaymentHistory();
-      setPayments(latestPayments);
-      localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(latestPayments));
-    } catch {
-      if (pago) prependPayment(pago);
-    }
-
+    saveSubscription(nextSub);
+    prependPayment(pago);
     setFeedback({
       type: 'success',
       text:
@@ -300,9 +304,8 @@ function SuscripcionesView({ onRefreshUser }) {
           : `Plan ${plan.name} (${plan.storage}) activado exitosamente.`),
     });
 
-    // Actualizar la cuota del usuario en el estado global del frontend
     if (onRefreshUser) {
-      await onRefreshUser();
+      onRefreshUser({ espacioDisponible: plan.storageBytes });
     }
   }
 
@@ -317,36 +320,17 @@ function SuscripcionesView({ onRefreshUser }) {
 
     setCanceling(true);
     setFeedback(null);
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
-    try {
-      const res = await cancelActiveSubscription();
-      saveSubscription(null);
-      setFeedback({
-        type: 'success',
-        text:
-          res?.message ||
-          'Suscripción cancelada exitosamente. Tu cuenta ha vuelto al PlanGratuito base (5 GB).',
-      });
-
-      if (onRefreshUser) {
-        await onRefreshUser();
-      }
-
-      try {
-        const latestPayments = await fetchPaymentHistory();
-        setPayments(latestPayments);
-        localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(latestPayments));
-      } catch {
-        // ignore
-      }
-    } catch (err) {
-      setFeedback({
-        type: 'error',
-        text: err.message || 'Error al cancelar la suscripción.',
-      });
-    } finally {
-      setCanceling(false);
+    saveSubscription(null);
+    setFeedback({
+      type: 'success',
+      text: 'Suscripción cancelada. Tu cuenta volvió al PlanGratuito base (5 GB).',
+    });
+    if (onRefreshUser) {
+      onRefreshUser({ espacioDisponible: 5 * GB_BYTES });
     }
+    setCanceling(false);
   }
 
   // Si el usuario abrió la Pasarela de Pagos, renderiza la vista desacoplada
@@ -358,11 +342,8 @@ function SuscripcionesView({ onRefreshUser }) {
         mode={checkoutState.mode}
         currentPlanName={currentPlanLabel}
         onBack={() => setCheckoutState(null)}
-        onPaymentSuccess={handlePaymentSuccess}
-        onPaymentRejected={(rejectedRecord) => {
-          prependPayment(rejectedRecord);
-          fetchPaymentHistory().then(setPayments).catch(() => {});
-        }}
+        onPaymentSuccess={handleSimulatedPaymentSuccess}
+        onPaymentRejected={(rejectedRecord) => prependPayment(rejectedRecord)}
       />
     );
   }
@@ -419,7 +400,7 @@ function SuscripcionesView({ onRefreshUser }) {
 
       {feedback && (
         <div style={{ maxWidth: 1120, margin: '0 auto 24px' }}>
-          <Alert variant={feedback.type}>{feedback.text}</Alert>
+          <Alert type={feedback.type}>{feedback.text}</Alert>
         </div>
       )}
 
@@ -855,7 +836,7 @@ function SuscripcionesView({ onRefreshUser }) {
               Pagos protegidos y almacenamiento garantizado
             </div>
             <div style={{ fontSize: 13, color: colors.muted }}>
-              Cifrado AES de 256 bits, actualización inmediata de cuota con el Patrón Decorator y cancelación en cualquier momento.
+              Autenticación segura con JWT, actualización inmediata de cuota con el Patrón Decorator y cancelación en cualquier momento.
             </div>
           </div>
         </div>

@@ -1,70 +1,197 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Icon from '../../components/ui/Icon';
-import Button from '../../components/ui/Button';
 import { colors } from '../../styles/theme';
+import { fetchPlansCatalog } from '../../services/subscriptionService';
+
+const GB_BYTES = 1024 ** 3;
+
+const ACCENT_PALETTE = [
+  { accent: colors.info, accentSoft: colors.infoSoft },
+  { accent: colors.primary, accentSoft: colors.primarySoft },
+  { accent: colors.warningDark, accentSoft: colors.warningSoft },
+  { accent: colors.successDark, accentSoft: colors.successSoft },
+];
+
+const FALLBACK_PLANS = [
+  {
+    id: 'free',
+    name: 'Gratuito',
+    subtitle: 'Capacidad por defecto para cuentas sin suscripción activa',
+    price: 'Q0.00',
+    period: 'gratis de por vida',
+    storage: '5 GB',
+    popular: false,
+    accent: colors.info,
+    accentSoft: colors.infoSoft,
+    features: [
+      '5 GB de almacenamiento base gratuito',
+      'Tamaño máximo por archivo: 10 MB',
+      'Subida de 1 archivo a la vez',
+      'Enlaces compartidos con vigencia de 24 horas',
+    ],
+    buttonText: 'Crear cuenta gratis',
+  },
+  {
+    id: 1,
+    name: 'Básico',
+    subtitle: 'Para uso personal: respalda documentos y fotos',
+    price: 'Q25.00',
+    period: '/ 30 días',
+    storage: '50 GB',
+    popular: false,
+    accent: colors.successDark,
+    accentSoft: colors.successSoft,
+    features: [
+      '50 GB de almacenamiento total',
+      'Tamaño máximo por archivo: 50 MB',
+      'Subida múltiple de hasta 3 archivos simultáneos',
+      'Enlaces compartidos con vigencia de 7 días',
+    ],
+    buttonText: 'Comenzar con Básico',
+  },
+  {
+    id: 2,
+    name: 'Profesional',
+    subtitle: 'Para freelancers y equipos pequeños',
+    price: 'Q60.00',
+    period: '/ 30 días',
+    storage: '200 GB',
+    popular: true,
+    accent: colors.primary,
+    accentSoft: colors.primarySoft,
+    features: [
+      '200 GB de almacenamiento total',
+      'Tamaño máximo por archivo: 50 MB',
+      'Subida múltiple de hasta 10 archivos simultáneos',
+      'Enlaces compartidos con vigencia extendida de 30 días',
+    ],
+    buttonText: 'Comenzar con Profesional',
+  },
+  {
+    id: 3,
+    name: 'Empresarial',
+    subtitle: 'Gran capacidad para equipos y empresas',
+    price: 'Q150.00',
+    period: '/ 30 días',
+    storage: '1 TB',
+    popular: false,
+    accent: colors.warningDark,
+    accentSoft: colors.warningSoft,
+    features: [
+      '1 TB (1,024 GB) de almacenamiento total',
+      'Tamaño máximo por archivo: 50 MB',
+      'Subida masiva de hasta 25 archivos simultáneos',
+      'Enlaces compartidos corporativos con vigencia de 365 días',
+    ],
+    buttonText: 'Probar Empresarial',
+  },
+];
+
+function formatStorageFromBytes(bytes, fallbackGb = 5) {
+  const totalBytes = Number(bytes) || fallbackGb * GB_BYTES;
+  const gb = totalBytes / GB_BYTES;
+  if (gb >= 1024) {
+    const tb = gb / 1024;
+    return `${Number(tb.toFixed(tb % 1 === 0 ? 0 : 1))} TB`;
+  }
+  return `${Number(gb.toFixed(gb % 1 === 0 ? 0 : 1))} GB`;
+}
+
+function buildDynamicFeatures(storageLabel, decorator) {
+  const multer = decorator?.politicaMulter;
+  if (!multer) {
+    return [`${storageLabel} de almacenamiento en la nube`];
+  }
+  const effectiveMaxMb = Math.min(Number(multer.maxFileSizeMb) || 10, 50);
+  const filesText =
+    multer.maxFiles > 1
+      ? `Subida múltiple de hasta ${multer.maxFiles} archivos simultáneos`
+      : 'Subida de 1 archivo a la vez';
+  return [
+    `${storageLabel} de almacenamiento total en la nube`,
+    `Tamaño máximo por archivo: ${effectiveMaxMb} MB`,
+    filesText,
+    `Enlaces compartidos con vigencia de ${multer.shareExpiresIn || '24h'}`,
+  ];
+}
+
+function mapCatalogToLandingPlans(catalog) {
+  if (!catalog || !Array.isArray(catalog.planes)) {
+    return FALLBACK_PLANS;
+  }
+
+  const base = catalog.planBase;
+  const baseStorage = formatStorageFromBytes(
+    base?.capacidadCatalogo ?? base?.decorator?.almacenamiento,
+    5
+  );
+
+  const freePlan = {
+    id: 'free',
+    name: base?.nombre || 'Gratuito',
+    subtitle: base?.descripcionOriginal || 'Capacidad por defecto para cuentas sin suscripción activa.',
+    price: 'Q0.00',
+    period: 'gratis de por vida',
+    storage: baseStorage,
+    popular: false,
+    accent: colors.info,
+    accentSoft: colors.infoSoft,
+    features: buildDynamicFeatures(baseStorage, base?.decorator),
+    buttonText: 'Crear cuenta gratis',
+  };
+
+  const dbPlans = catalog.planes.map((plan, index) => {
+    const dec = plan.decorator || {};
+    const priceValue = Number(plan.precioCatalogo ?? dec.costo ?? 0);
+    const storageLabel = formatStorageFromBytes(
+      plan.capacidadCatalogo ?? dec.almacenamiento,
+      dec.almacenamientoGb || 50
+    );
+    const normalizedName = String(plan.nombre || '').toLowerCase();
+    const isPopular =
+      normalizedName.includes('pro') ||
+      (catalog.planes.length > 1 && index === 1 && !catalog.planes.some((p) => String(p.nombre || '').toLowerCase().includes('pro')));
+
+    const palette = isPopular
+      ? { accent: colors.primary, accentSoft: colors.primarySoft }
+      : ACCENT_PALETTE[(index + 1) % ACCENT_PALETTE.length];
+
+    return {
+      id: plan.id,
+      name: plan.nombre,
+      subtitle: plan.descripcionOriginal || dec.descripcion || 'Plan de almacenamiento en la nube',
+      price: `Q${priceValue.toFixed(2)}`,
+      period: plan.vigenciaDias ? `/ ${plan.vigenciaDias} días` : '/ mes',
+      storage: storageLabel,
+      popular: isPopular,
+      accent: palette.accent,
+      accentSoft: palette.accentSoft,
+      features: buildDynamicFeatures(storageLabel, dec),
+      buttonText: `Comenzar con ${plan.nombre}`,
+    };
+  });
+
+  return [freePlan, ...dbPlans];
+}
 
 function LandingPlans({ onGoToRegister }) {
-  const plans = [
-    {
-      id: 'free',
-      name: 'Básico',
-      subtitle: 'Para uso personal estándar',
-      price: '$0',
-      period: 'gratis de por vida',
-      storage: '15 GB',
-      popular: false,
-      accent: colors.info,
-      accentSoft: colors.infoSoft,
-      features: [
-        '15 GB de almacenamiento en la nube',
-        'Carga máxima de archivos de 2 GB',
-        'Acceso desde cualquier dispositivo',
-        'Papelera con retención de 30 días',
-        'Soporte estándar por comunidad',
-      ],
-      buttonText: 'Crear cuenta gratis',
-    },
-    {
-      id: 'pro',
-      name: 'Profesional',
-      subtitle: 'Para creadores y profesionales activos',
-      price: '$3.99',
-      period: 'USD / mes',
-      storage: '250 GB',
-      popular: true,
-      accent: colors.primary,
-      accentSoft: colors.primarySoft,
-      features: [
-        '250 GB de almacenamiento ultrarrápido',
-        'Carga de archivos sin límite de tamaño',
-        'Enlaces protegidos con contraseña',
-        'Enlaces con fecha de expiración',
-        'Historial de versiones de 60 días',
-        'Soporte prioritario por correo',
-      ],
-      buttonText: 'Comenzar con Pro',
-    },
-    {
-      id: 'business',
-      name: 'Empresarial',
-      subtitle: 'Para equipos y máxima productividad',
-      price: '$9.99',
-      period: 'USD / mes',
-      storage: '1 TB',
-      popular: false,
-      accent: colors.warningDark,
-      accentSoft: colors.warningSoft,
-      features: [
-        '1 TB (1,000 GB) de almacenamiento',
-        'Cifrado avanzado de extremo a extremo',
-        'Herramientas de colaboración multiusuario',
-        'Historial ilimitado de versiones',
-        'Descargas de alta velocidad dedicadas',
-        'Soporte personalizado 24/7',
-      ],
-      buttonText: 'Probar Empresarial',
-    },
-  ];
+  const [plans, setPlans] = useState(FALLBACK_PLANS);
+
+  useEffect(() => {
+    let active = true;
+    fetchPlansCatalog()
+      .then((catalog) => {
+        if (active && catalog) {
+          setPlans(mapCatalogToLandingPlans(catalog));
+        }
+      })
+      .catch(() => {
+        // Conserva los planes de respaldo si el servidor está apagado
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <section id="planes" style={{ padding: '90px 24px', background: 'transparent' }}>
@@ -109,7 +236,7 @@ function LandingPlans({ onGoToRegister }) {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
             gap: 24,
             alignItems: 'stretch',
           }}
@@ -122,7 +249,7 @@ function LandingPlans({ onGoToRegister }) {
                 style={{
                   background: colors.surface,
                   borderRadius: 24,
-                  padding: '36px 30px',
+                  padding: '36px 28px',
                   border: isPop ? `2px solid ${plan.accent}` : `1px solid ${colors.border}`,
                   display: 'flex',
                   flexDirection: 'column',
@@ -197,7 +324,7 @@ function LandingPlans({ onGoToRegister }) {
                 {/* Precio */}
                 <div style={{ marginBottom: 24 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{ fontSize: 36, fontWeight: 900, color: colors.primaryDark, letterSpacing: '-1px' }}>
+                    <span style={{ fontSize: 34, fontWeight: 900, color: colors.primaryDark, letterSpacing: '-1px' }}>
                       {plan.price}
                     </span>
                     <span style={{ fontSize: 13, color: colors.muted, fontWeight: 600 }}>{plan.period}</span>

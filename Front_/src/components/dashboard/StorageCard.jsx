@@ -5,7 +5,8 @@ import { formatBytes, getStorageUsage } from '../../utils/user';
  * Uso de almacenamiento del usuario con barra de progreso.
  */
 function StorageCard({ user }) {
-  const { used, free, total, percent } = getStorageUsage(user);
+  const { used, total, percent, percentLabel, barWidth, freeFormatted } = getStorageUsage(user);
+  const barColor = percent >= 90 ? colors.danger : percent >= 75 ? colors.warningDark : colors.primary;
 
   return (
     <div style={{ background: colors.surfaceAlt, borderRadius: 12, padding: 16, marginBottom: 16 }}>
@@ -14,11 +15,19 @@ function StorageCard({ user }) {
         <span style={{ fontSize: 12, color: colors.subtle }}>de {formatBytes(total)}</span>
       </div>
       <div style={{ height: 6, background: colors.border, borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
-        <div style={{ height: '100%', width: `${percent}%`, background: colors.primary, borderRadius: 4 }} />
+        <div
+          style={{
+            height: '100%',
+            width: `${barWidth}%`,
+            background: barColor,
+            borderRadius: 4,
+            transition: 'width 0.35s ease, background-color 0.35s ease',
+          }}
+        />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-        <span style={{ color: colors.primary, fontWeight: 700 }}>{percent}% usado</span>
-        <span style={{ color: colors.subtle }}>{formatBytes(free)} libres</span>
+        <span style={{ color: barColor, fontWeight: 700 }}>{percentLabel}% usado</span>
+        <span style={{ color: colors.subtle }}>{freeFormatted} libres</span>
       </div>
     </div>
   );

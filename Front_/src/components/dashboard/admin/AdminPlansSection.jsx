@@ -17,7 +17,7 @@ function AdminPlansSection({
   setPlanForm,
   handleCreatePlan,
   handleTogglePlan,
-  openEditPlanPrice,
+  openEditPlan,
 }) {
   return (
     <section
@@ -32,7 +32,7 @@ function AdminPlansSection({
         Catálogo de Planes de Almacenamiento
       </div>
       <div style={{ fontSize: 12.5, color: colors.muted, marginBottom: 14 }}>
-        Crea nuevos planes o activa y desactiva los existentes en el catálogo.
+        Crea nuevos planes, edita sus características o activa y desactiva los existentes en el catálogo.
       </div>
 
       <form
@@ -241,9 +241,9 @@ function AdminPlansSection({
                       </button>
                       <button
                         type="button"
-                        onClick={() => openEditPlanPrice(p.id, p.precio)}
+                        onClick={() => openEditPlan(p)}
                         style={{
-                          background: colors.surface,
+                          background: colors.primarySoft,
                           color: colors.primary,
                           border: `1px solid ${colors.primary}`,
                           borderRadius: 6,
@@ -253,7 +253,7 @@ function AdminPlansSection({
                           cursor: 'pointer',
                         }}
                       >
-                        Precio
+                        Editar
                       </button>
                     </div>
                   </td>

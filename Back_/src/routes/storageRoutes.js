@@ -20,6 +20,8 @@ import {
   createFolder,
   renameFolder,
   deleteFolder,
+  restoreFolder,
+  permanentDeleteFolder,
 } from '../controllers/storageController.js';
 import { authenticateToken } from '../middlewares/authMiddleware.js';
 import { handleSingleUpload } from '../middlewares/uploadMiddleware.js';
@@ -51,6 +53,8 @@ router.get('/trash', getTrashFiles);
 router.delete('/trash', emptyTrash);
 router.post('/trash/:id/restore', restoreFile);
 router.delete('/trash/:id', permanentDeleteFile);
+router.post('/trash/folders/:id/restore', restoreFolder);
+router.delete('/trash/folders/:id', permanentDeleteFolder);
 
 // --- Carpetas ---
 router.get('/folders', getAllFolders);

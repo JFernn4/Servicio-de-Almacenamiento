@@ -1,6 +1,5 @@
 import React from 'react';
 import Icon from '../../components/ui/Icon';
-import Button from '../../components/ui/Button';
 import { colors } from '../../styles/theme';
 
 function LandingHero({ onGoToRegister, onExplore }) {
@@ -63,7 +62,7 @@ function LandingHero({ onGoToRegister, onExplore }) {
             fontWeight: 500,
           }}
         >
-          VinCloud te ofrece el espacio en la nube más ágil y seguro. Sube archivos pesados, comparte con enlaces protegidos y accede desde cualquier dispositivo.
+          VinCloud te ofrece un espacio en la nube ágil y organizado. Sube tus archivos, organízalos en carpetas, comparte mediante enlaces con vigencia o por correo y accede desde cualquier dispositivo.
         </p>
 
         {/* Botones de acción */}
@@ -104,7 +103,7 @@ function LandingHero({ onGoToRegister, onExplore }) {
               e.currentTarget.style.boxShadow = '0 10px 25px rgba(125, 21, 53, 0.45)';
             }}
           >
-            <span>Crea tu cuenta con 15 GB gratis</span>
+            <span>Crea tu cuenta con 5 GB gratis</span>
             <Icon name="arrowRight" size={18} color={colors.surface} strokeWidth={2.5} />
           </button>
 
@@ -139,7 +138,7 @@ function LandingHero({ onGoToRegister, onExplore }) {
         </div>
 
         <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.65)', marginBottom: 60 }}>
-          ✓ Sin tarjeta de crédito requerida &nbsp;•&nbsp; ✓ Cifrado de extremo a extremo &nbsp;•&nbsp; ✓ Activación instantánea
+          ✓ 5 GB gratuitos al registrarte &nbsp;•&nbsp; ✓ Autenticación segura con JWT &nbsp;•&nbsp; ✓ Verificación por correo
         </div>
 
         {/* Mockup interactivo central con tarjetas flotantes */}
@@ -180,12 +179,12 @@ function LandingHero({ onGoToRegister, onExplore }) {
               <div style={{ fontSize: 13, fontWeight: 800, color: colors.primaryDark }}>Proyecto_Final_2026.pdf</div>
               <div style={{ fontSize: 11, color: colors.successDark, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Icon name="check" size={12} color={colors.successDark} strokeWidth={3} />
-                Sincronizado al instante
+                Disponible en la nube
               </div>
             </div>
           </div>
 
-          {/* Tarjeta flotante 2: Cifrado y seguridad */}
+          {/* Tarjeta flotante 2: Seguridad JWT y Bcrypt */}
           <div
             className="floating-card-2"
             style={{
@@ -218,12 +217,12 @@ function LandingHero({ onGoToRegister, onExplore }) {
               <Icon name="shield" size={20} color={colors.successDark} />
             </div>
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: colors.primaryDark }}>Cifrado AES-256</div>
-              <div style={{ fontSize: 11, color: colors.muted }}>Protección total en tránsito</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: colors.primaryDark }}>Seguridad JWT y Bcrypt</div>
+              <div style={{ fontSize: 11, color: colors.muted }}>Cuentas verificadas por correo</div>
             </div>
           </div>
 
-          {/* Tarjeta flotante 3: Enlace compartido protegido */}
+          {/* Tarjeta flotante 3: Enlace compartido con vigencia */}
           <div
             className="floating-card-3"
             style={{
@@ -253,11 +252,11 @@ function LandingHero({ onGoToRegister, onExplore }) {
                 justifyContent: 'center',
               }}
             >
-              <Icon name="lock" size={20} color={colors.info} />
+              <Icon name="share" size={20} color={colors.info} />
             </div>
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: colors.primaryDark }}>Enlace Protegido</div>
-              <div style={{ fontSize: 11, color: colors.muted }}>Con clave y caducidad</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: colors.primaryDark }}>Enlace Compartido</div>
+              <div style={{ fontSize: 11, color: colors.muted }}>Con token e invitación</div>
             </div>
           </div>
 
@@ -284,7 +283,7 @@ function LandingHero({ onGoToRegister, onExplore }) {
             >
               <div style={{ display: 'flex', gap: 8 }}>
                 <span style={{ width: 11, height: 11, borderRadius: '50%', background: colors.danger, display: 'inline-block' }} />
-                <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#F59E0B', display: 'inline-block' }} />
+                <span style={{ width: 11, height: 11, borderRadius: '50%', background: colors.warning, display: 'inline-block' }} />
                 <span style={{ width: 11, height: 11, borderRadius: '50%', background: colors.success, display: 'inline-block' }} />
               </div>
               <div
@@ -312,7 +311,7 @@ function LandingHero({ onGoToRegister, onExplore }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: colors.primaryDark }}>Mis Archivos</h3>
-                  <span style={{ fontSize: 12, color: colors.muted }}>Sincronización activa con la nube</span>
+                  <span style={{ fontSize: 12, color: colors.muted }}>Almacenamiento activo en la nube</span>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <span
@@ -337,7 +336,7 @@ function LandingHero({ onGoToRegister, onExplore }) {
               {/* Lista simulada de archivos */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
-                  { name: 'Carpeta Diseño UI/UX 2026', type: 'folder', size: '1.2 GB', date: 'Hoy, 10:45 AM' },
+                  { name: 'Carpeta Diseño UI/UX 2026', type: 'folder', size: 'Carpeta', date: 'Hoy, 10:45 AM' },
                   { name: 'Memoria_Tecnica_Servicio_Nube.docx', type: 'file', size: '4.8 MB', date: 'Ayer' },
                   { name: 'Backup_Base_Datos_Postgres.sql', type: 'file', size: '14.2 MB', date: '14 Oct' },
                 ].map((item, i) => (
